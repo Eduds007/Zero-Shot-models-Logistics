@@ -1,3 +1,13 @@
 __pycache__/
 *.pyc
 *.jpg
+
+# LOCO raw data (downloaded/extracted, not committed) -- keeps dataset/*.py
+# scripts and dataset/results/*.csv trackable
+dataset/loco.zip
+dataset/dataset/
+dataset/annotations/
+dataset/loco_eval_results.json
+
+# generated demo output, not source
+assets/output_sam3.mp4
