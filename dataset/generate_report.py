@@ -156,20 +156,16 @@ def build():
     anomalies.sort(key=lambda a: (a["best"]["ap_50"] or 0) - (a["worst"]["ap_50"] or 0), reverse=True)
     anomaly_runs = {a["best"]["run"] for a in anomalies} | {a["worst"]["run"] for a in anomalies}
 
-    # ---- best run per family (by AP50) drives FIG 01 / FIG 02 ----
-    best_per_family = {}
-    for r in overall_rows:
-        cur = best_per_family.get(r["family"])
-        if cur is None or (r["ap_50"] or 0) > (cur["ap_50"] or 0):
-            best_per_family[r["family"]] = r
-    bars_order = sorted(best_per_family.values(), key=lambda r: r["ap_50"] or 0, reverse=True)
+    # ---- top 4 runs by AP50 drive FIG 01 / FIG 02 — ranked by run, not deduped by model ----
+    TOP_N = 4
+    top_runs = sorted(overall_rows, key=lambda r: (-(r["ap_50"] or 0), r["run"]))[:TOP_N]
 
     def short_tag(msg, limit=42):
         msg = msg or ""
         return msg if len(msg) <= limit else msg[: limit - 1].rstrip() + "…"
 
     bars = []
-    for r in bars_order:
+    for r in top_runs:
         ratio = (r["predictions"] / r["gt_boxes"]) if r["gt_boxes"] else 0
         tip = (
             f"{r['model']}\\nrun: {r['run']}\\n"
@@ -178,8 +174,8 @@ def build():
         )
         bars.append(
             {
-                "name": r["family"],
-                "fam": f"{short_tag(r['message'])} · {r['run']}",
+                "name": r["run"],
+                "fam": f"{r['family']} · {short_tag(r['message'])}",
                 "color_var": r["color_var"],
                 "ap50": r["ap_50"] or 0.0,
                 "ap75": r["ap_75"] or 0.0,
@@ -189,10 +185,14 @@ def build():
         )
     scale_max = max([b["ap50"] for b in bars] + [0.01]) * 1.05
 
-    # ---- heatmap: per-category AP50 for each family's best run ----
+    # legend: unique (family, color) pairs among the top runs, in rank order
+    legend_items = list({(r["family"], r["color_var"]) for r in top_runs})
+    legend_items.sort(key=lambda fc: next(i for i, r in enumerate(top_runs) if r["family"] == fc[0]))
+
+    # ---- heatmap: per-category AP50 for the same top-4 runs ----
     heat_rows = []
     all_cell_vals = []
-    for r in bars_order:
+    for r in top_runs:
         cat_vals = {}
         for cr in by_run[r["run"]]:
             if cr["category"] != "OVERALL":
@@ -201,7 +201,7 @@ def build():
         all_cell_vals.extend(vals)
         heat_rows.append(
             {
-                "name": r["family"],
+                "name": f"{r['run']} · {r['family']}",
                 "color_var": r["color_var"],
                 "vals": vals,
                 "flagged": r["run"] in anomaly_runs,
@@ -265,7 +265,7 @@ def build():
     for c in categories:
         vals = [
             (cr["ap_50"] or 0.0)
-            for r in bars_order
+            for r in top_runs
             for cr in by_run[r["run"]]
             if cr["category"] == c
         ]
@@ -274,7 +274,7 @@ def build():
     if cat_avg:
         worst_cat = min(cat_avg, key=cat_avg.get)
         reading_bullets.append(
-            f"'{worst_cat.replace('_', ' ')}' is the weakest class on average across the best per-family runs "
+            f"'{worst_cat.replace('_', ' ')}' is the weakest class on average across the top {TOP_N} runs by AP50 "
             f"(mean AP50 {cat_avg[worst_cat]:.3f}) — the one most worth iterating prompts/thresholds on next."
         )
 
@@ -303,6 +303,8 @@ def build():
         "run_ids": run_ids,
         "families": families,
         "bars": bars,
+        "legend_items": legend_items,
+        "top_n": TOP_N,
         "scale_max": scale_max,
         "heat_rows": heat_rows,
         "categories_display": categories,
@@ -514,8 +516,8 @@ TEMPLATE = """<!doctype html>
     <div class="panel-head">
       <div>
         <div class="fig">FIG. 01</div>
-        <h2>Accuracy by run — AP50 with AP75 marker</h2>
-        <p>Best config per model family. Bar = AP<span class="mono">50</span> (IoU ≥ 0.5); tick marker = AP<span class="mono">75</span> (IoU ≥ 0.75) on the same scale.</p>
+        <h2>Accuracy by run — top {top_n} by AP50, with AP75 marker</h2>
+        <p>The {top_n} highest-scoring runs, ranked by AP<span class="mono">50</span> (IoU ≥ 0.5). Tick marker = AP<span class="mono">75</span> (IoU ≥ 0.75) on the same scale. Re-runs of the same config both count as separate runs.</p>
       </div>
       <div class="legend">{legend_html}</div>
     </div>
@@ -528,8 +530,8 @@ TEMPLATE = """<!doctype html>
     <div class="panel-head">
       <div>
         <div class="fig">FIG. 02</div>
-        <h2>AP50 by category</h2>
-        <p>Where each model actually works. Darker cell = higher AP50 for that class.</p>
+        <h2>AP50 by category — same top {top_n} runs</h2>
+        <p>Per-category AP50 for the same {top_n} runs as FIG. 01. Darker cell = higher AP50 for that class.</p>
       </div>
       <div class="legend">
         <div class="item"><span class="swatch" style="background:var(--seq-1)"></span>low</div>
@@ -729,8 +731,8 @@ def render(ctx: dict) -> str:
         return "—" if v is None else f"{v:.{digits}f}"
 
     legend_html = "".join(
-        f'<div class="item"><span class="swatch" style="background:var(--{b["color_var"]})"></span>{esc(b["name"])}</div>'
-        for b in ctx["bars"]
+        f'<div class="item"><span class="swatch" style="background:var(--{color_var})"></span>{esc(family)}</div>'
+        for family, color_var in ctx["legend_items"]
     )
 
     if ctx["worst_over"]:
@@ -821,6 +823,7 @@ def render(ctx: dict) -> str:
         n_cats=len(ctx["categories"]),
         n_runs=len(ctx["run_ids"]),
         n_families=len(ctx["families"]),
+        top_n=ctx["top_n"],
         sample_n=ctx["sample_n"],
         generated=ctx["generated"],
         best_ap50=ctx["best_ap50_row"]["ap_50"] or 0.0,
