@@ -169,7 +169,7 @@ def build():
         ratio = (r["predictions"] / r["gt_boxes"]) if r["gt_boxes"] else 0
         tip = (
             f"{r['model']}\\nrun: {r['run']}\\n"
-            f"AP50 {fnum(r['ap_50'])} · AP75 {fnum(r['ap_75'])}\\n"
+            f"AP50 {fnum(r['ap_50'])} · AP75 {fnum(r['ap_75'])} · AP50-95 {fnum(r['ap_50_95'])}\\n"
             f"AR100 {fnum(r['ar_100'])} · {r['predictions']:,} preds / {r['gt_boxes']:,} GT"
         )
         bars.append(
@@ -179,6 +179,7 @@ def build():
                 "color_var": r["color_var"],
                 "ap50": r["ap_50"] or 0.0,
                 "ap75": r["ap_75"] or 0.0,
+                "ap5095": r["ap_50_95"] or 0.0,
                 "flagged": r["run"] in anomaly_runs,
                 "tip": tip,
             }
@@ -213,15 +214,16 @@ def build():
             0 if heat_max <= 0 else min(5, int(v / heat_max * 5 + 1e-9)) for v in hr["vals"]
         ]
 
-    # ---- diverging chart: predictions/GT for every OVERALL run ----
-    divs = []
+    # ---- diverging chart: predictions/GT for the runs with the least extrapolation ----
+    EXTRAP_N = 6
+    divs_all = []
     for r in overall_rows:
         if not r["gt_boxes"]:
             continue
         ratio = r["predictions"] / r["gt_boxes"]
         if ratio <= 0:
             continue
-        divs.append(
+        divs_all.append(
             {
                 "name": r["family"],
                 "fam": f"{short_tag(r['message'], 30)} · {r['run']}",
@@ -230,6 +232,7 @@ def build():
                 "flagged": r["run"] in anomaly_runs,
             }
         )
+    divs = sorted(divs_all, key=lambda d: abs(math.log2(d["ratio"])))[:EXTRAP_N]
     divs.sort(key=lambda d: d["ratio"])
     half = 2.0
     if divs:
@@ -238,10 +241,7 @@ def build():
     # ---- KPIs ----
     best_ap50_row = max(overall_rows, key=lambda r: r["ap_50"] or -1)
     best_ap75_row = max(overall_rows, key=lambda r: r["ap_75"] or -1)
-    over_pred_rows = [
-        (r, r["predictions"] / r["gt_boxes"]) for r in overall_rows if r["gt_boxes"]
-    ]
-    worst_over = max(over_pred_rows, key=lambda t: t[1]) if over_pred_rows else None
+    best_ap5095_row = max(overall_rows, key=lambda r: r["ap_50_95"] or -1)
     speed_rows = [r for r in overall_rows if r["images_per_sec"]]
     fastest = max(speed_rows, key=lambda r: r["images_per_sec"]) if speed_rows else None
 
@@ -309,10 +309,11 @@ def build():
         "heat_rows": heat_rows,
         "categories_display": categories,
         "divs": divs,
+        "extrap_n": EXTRAP_N,
         "half": half,
         "best_ap50_row": best_ap50_row,
         "best_ap75_row": best_ap75_row,
-        "worst_over": worst_over,
+        "best_ap5095_row": best_ap5095_row,
         "fastest": fastest,
         "sample_n": sample_n,
         "generated": generated,
@@ -406,6 +407,8 @@ TEMPLATE = """<!doctype html>
   .fill:hover{{ filter:brightness(1.08); }}
   .marker{{ position:absolute; top:-3px; width:2px; height:calc(100% + 6px); background:var(--ink); opacity:.55; cursor:pointer; }}
   .marker::after{{ content:''; position:absolute; top:-4px; left:50%; transform:translateX(-50%); width:6px; height:6px; border-radius:50%; background:var(--ink); opacity:.7; }}
+  .marker.ap5095{{ background:var(--accent); opacity:.8; }}
+  .marker.ap5095::after{{ background:var(--accent); }}
   .barrow .val{{ font-family:"IBM Plex Mono",monospace; font-size:.92rem; text-align:right; font-weight:600; }}
   .barrow .val small{{ display:block; font-size:.68rem; font-weight:400; color:var(--ink-muted); }}
   .barrow.flagged .name .fam{{ color:var(--status-critical); }}
@@ -434,14 +437,6 @@ TEMPLATE = """<!doctype html>
   .divaxis .tick{{ position:absolute; top:0; font-family:"IBM Plex Mono",monospace; font-size:.64rem; color:var(--ink-muted); transform:translateX(-50%); }}
   .badge{{ display:inline-flex; align-items:center; gap:.3rem; font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.03em; text-transform:uppercase; padding:.15rem .45rem; border-radius:2px; font-weight:500; }}
   .badge.critical{{ background:var(--status-critical-bg); color:var(--status-critical); }}
-  .callout{{ margin-top:1.5rem; border:1px solid var(--status-critical); background:var(--status-critical-bg); border-radius:3px; padding:1.1rem 1.3rem; display:grid; grid-template-columns:auto 1fr; gap:.9rem; align-items:start; }}
-  .callout .ico{{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--status-critical); font-size:.95rem; line-height:1.4; }}
-  .callout h3{{ font-size:.95rem; font-weight:700; color:var(--status-critical); margin-bottom:.35rem; }}
-  .callout p{{ margin:.3rem 0; font-size:.86rem; color:var(--ink); }}
-  .callout .rundiff{{ display:flex; gap:1.5rem; margin-top:.6rem; flex-wrap:wrap; }}
-  .callout .rundiff div{{ font-size:.8rem; }}
-  .callout .rundiff .k{{ display:block; font-family:"IBM Plex Mono",monospace; font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-muted); }}
-  .callout .rundiff .v{{ font-family:"IBM Plex Mono",monospace; font-weight:600; }}
   .tablewrap{{ overflow:auto; max-height:26rem; border:1px solid var(--border); border-radius:3px; }}
   table{{ border-collapse:collapse; width:100%; min-width:900px; font-size:.82rem; }}
   thead th{{ position:sticky; top:0; background:var(--surface-2); z-index:1; text-align:left; padding:.55rem .7rem; font-family:"IBM Plex Mono",monospace; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-muted); border-bottom:1px solid var(--border); white-space:nowrap; }}
@@ -500,10 +495,10 @@ TEMPLATE = """<!doctype html>
       <div class="lbl">Best AP<span class="mono">75</span> overall</div>
       <div class="sub">{best_ap75_sub}</div>
     </div>
-    <div class="kpi flag">
-      <div class="val">{worst_over_val}<small>{worst_over_unit}</small></div>
-      <div class="lbl">Worst over-prediction</div>
-      <div class="sub">{worst_over_sub}</div>
+    <div class="kpi">
+      <div class="val">{best_ap5095:.3f}</div>
+      <div class="lbl">Best AP<span class="mono">50-95</span> overall</div>
+      <div class="sub">{best_ap5095_sub}</div>
     </div>
     <div class="kpi">
       <div class="val">{fastest_val}<small>{fastest_unit}</small></div>
@@ -516,14 +511,14 @@ TEMPLATE = """<!doctype html>
     <div class="panel-head">
       <div>
         <div class="fig">FIG. 01</div>
-        <h2>Accuracy by run — top {top_n} by AP50, with AP75 marker</h2>
-        <p>The {top_n} highest-scoring runs, ranked by AP<span class="mono">50</span> (IoU ≥ 0.5). Tick marker = AP<span class="mono">75</span> (IoU ≥ 0.75) on the same scale. Re-runs of the same config both count as separate runs.</p>
+        <h2>Accuracy by run — top {top_n} by AP50, with AP75 and AP50-95 markers</h2>
+        <p>The {top_n} highest-scoring runs, ranked by AP<span class="mono">50</span> (IoU ≥ 0.5). Tick markers = AP<span class="mono">75</span> (IoU ≥ 0.75) and AP<span class="mono">50-95</span> (mean over IoU 0.50–0.95) on the same scale. Re-runs of the same config both count as separate runs.</p>
       </div>
-      <div class="legend">{legend_html}</div>
+      <div class="legend">{legend_html}<div class="item"><span class="swatch" style="background:var(--ink); width:2px; border-radius:0;"></span>AP75</div><div class="item"><span class="swatch" style="background:var(--accent); width:2px; border-radius:0;"></span>AP50-95</div></div>
     </div>
     <div class="barchart" id="barchart"></div>
     <div class="axis"><div></div><div class="ticks" id="axis-ticks"></div><div></div></div>
-    <p class="panel-note">Scale max = {scale_max:.3f} (105% of the current best AP50). Flagged rows have a same-config re-run that disagrees — see the callout below.</p>
+    <p class="panel-note">Scale max = {scale_max:.3f} (105% of the current best AP50).</p>
   </section>
 
   <section class="panel">
@@ -547,14 +542,12 @@ TEMPLATE = """<!doctype html>
       <div>
         <div class="fig">FIG. 03</div>
         <h2>Predictions vs. ground truth — the extrapolation check</h2>
-        <p>predictions ÷ gt_boxes, log2 scale. Left of center = model stays quiet; right of center = model floods the image with boxes.</p>
+        <p>predictions ÷ gt_boxes, log2 scale. Left of center = model stays quiet; right of center = model floods the image with boxes. Showing the {extrap_n} runs with the least extrapolation (smallest deviation from 1×).</p>
       </div>
     </div>
     <div class="divchart" id="divchart"></div>
     <div class="divaxis"><div></div><div class="ticks" id="divaxis-ticks"></div><div></div></div>
   </section>
-
-  {callout_html}
 
   <section class="panel">
     <div class="panel-head">
@@ -610,13 +603,15 @@ TEMPLATE = """<!doctype html>
     row.className = 'barrow' + (b.flagged ? ' flagged' : '');
     var wAp50 = Math.min(100, b.ap50 / SCALE_MAX * 100);
     var wAp75 = Math.min(100, b.ap75 / SCALE_MAX * 100);
+    var wAp5095 = Math.min(100, b.ap5095 / SCALE_MAX * 100);
     row.innerHTML =
       '<div class="name">' + b.name + '<span class="fam">' + b.fam + '</span></div>' +
       '<div class="track">' +
         '<div class="fill" data-tip="' + b.tip + '" style="width:' + wAp50 + '%; background:var(--' + b.color_var + ')"></div>' +
         '<div class="marker" data-tip="AP75 = ' + b.ap75.toFixed(3) + '" style="left:' + wAp75 + '%"></div>' +
+        '<div class="marker ap5095" data-tip="AP50-95 = ' + b.ap5095.toFixed(3) + '" style="left:' + wAp5095 + '%"></div>' +
       '</div>' +
-      '<div class="val">' + b.ap50.toFixed(3) + '<small>AP75 ' + b.ap75.toFixed(3) + '</small></div>';
+      '<div class="val">' + b.ap50.toFixed(3) + '<small>AP75 ' + b.ap75.toFixed(3) + ' · AP50-95 ' + b.ap5095.toFixed(3) + '</small></div>';
     barchart.appendChild(row);
   }});
   var ticks = document.getElementById('axis-ticks');
@@ -735,12 +730,7 @@ def render(ctx: dict) -> str:
         for family, color_var in ctx["legend_items"]
     )
 
-    if ctx["worst_over"]:
-        row, ratio = ctx["worst_over"]
-        worst_over_val, worst_over_unit = f"{ratio:.1f}", "×"
-        worst_over_sub = f"{esc(row['family'])} · run {esc(row['run'])}"
-    else:
-        worst_over_val, worst_over_unit, worst_over_sub = "—", "", "no OVERALL rows with GT boxes"
+    best_ap5095_sub = f"{esc(ctx['best_ap5095_row']['family'])} · run {esc(ctx['best_ap5095_row']['run'])}"
 
     if ctx["fastest"]:
         r = ctx["fastest"]
@@ -748,23 +738,6 @@ def render(ctx: dict) -> str:
         fastest_sub = f"{esc(r['family'])} · run {esc(r['run'])}"
     else:
         fastest_val, fastest_unit, fastest_sub = "—", "", "no speed data logged yet"
-
-    if ctx["anomalies"]:
-        a = ctx["anomalies"][0]
-        callout_html = f"""
-  <section class="callout">
-    <div class="ico">!</div>
-    <div>
-      <h3>Unresolved — same config, different results</h3>
-      <p><code>{esc(a['model'])}</code> was run more than once with identical settings and produced meaningfully different AP50. This has not been root-caused; treat both numbers as provisional until it is.</p>
-      <div class="rundiff">
-        <div><span class="k">{esc(a['best']['run'])}</span><span class="v">{a['best']['predictions']:,} preds · AP50 {num_or_dash(a['best']['ap_50'])} · AR100 {num_or_dash(a['best']['ar_100'])}</span></div>
-        <div><span class="k">{esc(a['worst']['run'])}</span><span class="v">{a['worst']['predictions']:,} preds · AP50 {num_or_dash(a['worst']['ap_50'])} · AR100 {num_or_dash(a['worst']['ar_100'])}</span></div>
-      </div>
-    </div>
-  </section>"""
-    else:
-        callout_html = ""
 
     reading_html = "".join(f"<li>{b}</li>" for b in ctx["reading_bullets"])
     next_up_html = "".join(f"<li>{b}</li>" for b in ctx["next_up"])
@@ -793,6 +766,7 @@ def render(ctx: dict) -> str:
             "color_var": b["color_var"],
             "ap50": b["ap50"],
             "ap75": b["ap75"],
+            "ap5095": b["ap5095"],
             "flagged": b["flagged"],
             "tip": b["tip"],
         }
@@ -830,15 +804,14 @@ def render(ctx: dict) -> str:
         best_ap50_sub=f"{esc(ctx['best_ap50_row']['family'])} · run {esc(ctx['best_ap50_row']['run'])}",
         best_ap75=ctx["best_ap75_row"]["ap_75"] or 0.0,
         best_ap75_sub=f"{esc(ctx['best_ap75_row']['family'])} · run {esc(ctx['best_ap75_row']['run'])}",
-        worst_over_val=worst_over_val,
-        worst_over_unit=worst_over_unit,
-        worst_over_sub=worst_over_sub,
+        best_ap5095=ctx["best_ap5095_row"]["ap_50_95"] or 0.0,
+        best_ap5095_sub=best_ap5095_sub,
         fastest_val=fastest_val,
         fastest_unit=fastest_unit,
         fastest_sub=fastest_sub,
         legend_html=legend_html,
         scale_max=ctx["scale_max"],
-        callout_html=callout_html,
+        extrap_n=ctx["extrap_n"],
         reading_html=reading_html,
         next_up_html=next_up_html,
         bars_js=json.dumps(bars_for_js),
