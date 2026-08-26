@@ -1,1 +1,4 @@
 *.mp4 filter=lfs diff=lfs merge=lfs -text
+assets/output_sam3_lab.mp4 filter=lfs diff=lfs merge=lfs -text
+assets/output_sam3_2fps_photos.mp4 filter=lfs diff=lfs merge=lfs -text
+assets/base_video.mp4 filter=lfs diff=lfs merge=lfs -text
