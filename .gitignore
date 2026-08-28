@@ -27,6 +27,7 @@ weights/
 # generate_sam3_pseudo_dataset.py / split_pseudo_bank.py, not committed
 dataset/sam3_v6_pseudo/labels/
 dataset/sam3_v6_pseudo_split/labels/
+dataset/sam3_v6_pseudo_split_random/labels/
 
 # generated demo output, not source
 assets/output_sam3.mp4
