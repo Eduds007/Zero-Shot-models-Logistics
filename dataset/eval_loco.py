@@ -20,11 +20,21 @@ import time
 from PIL import Image
 
 CATEGORY_PROMPTS = {
-    "small_load_carrier": "plastic tote box",
+    "small_load_carrier": "plastic crate",
     "forklift": "forklift",
     "pallet": "pallet",
-    "stillage": "wire mesh cage",
-    "pallet_truck": "pallet truck",
+    "stillage": "wire mesh crate",
+    "pallet_truck": "pallet jack",
+}
+
+# sam3_v6: forklift recall was capped by the default 0.5 threshold, so it runs
+# at a much lower threshold and keeps only its top-2 highest-score boxes per
+# image to avoid flooding the image with low-confidence forklift guesses.
+CATEGORY_CONFIDENCE_OVERRIDES = {
+    "forklift": 0.05,
+}
+CATEGORY_TOP_K = {
+    "forklift": 2,
 }
 
 MODEL_NAME = "facebook/sam3 (sam3.pt, build_sam3_image_model)"
@@ -92,10 +102,20 @@ def run_predictions(gt, dataset_root, confidence_threshold=0.5):
 
         for cat_id, cat_name in cat_id_to_name.items():
             prompt = CATEGORY_PROMPTS.get(cat_name, cat_name.replace("_", " "))
+            cat_threshold = CATEGORY_CONFIDENCE_OVERRIDES.get(cat_name, confidence_threshold)
+            if processor.confidence_threshold != cat_threshold:
+                processor.set_confidence_threshold(cat_threshold)
             state = processor.set_text_prompt(prompt=prompt, state=state)
 
             boxes = state["boxes"].cpu().tolist()
             scores = state["scores"].cpu().tolist()
+
+            top_k = CATEGORY_TOP_K.get(cat_name)
+            if top_k is not None and len(scores) > top_k:
+                order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+                boxes = [boxes[i] for i in order]
+                scores = [scores[i] for i in order]
+
             for box, score in zip(boxes, scores):
                 x0, y0, x1, y1 = box
                 results.append(

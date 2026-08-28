@@ -12,9 +12,12 @@ dataset/loco_eval_results.json
 # YOLO training artifacts, derived from the LOCO raw data above via
 # convert_loco_to_yolo.py -- regenerable, not committed
 dataset/yolo/
+dataset/yolo_papersplit/
 dataset/yolo_runs/
 dataset/loco_train_paths.txt
 dataset/loco_val_paths.txt
+dataset/loco_papersplit_train_paths.txt
+dataset/loco_papersplit_val_paths.txt
 dataset/*.pt
 runs/
 weights/
