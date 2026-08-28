@@ -1,0 +1,9 @@
+train: /home/go39sin/Desktop/Zero-Shot-models-Logistics/dataset/sam3_v6_pseudo/images
+val: /home/go39sin/Desktop/Zero-Shot-models-Logistics/dataset/yolo/images/val
+nc: 5
+names:
+  0: small_load_carrier
+  1: forklift
+  2: pallet
+  3: stillage
+  4: pallet_truck

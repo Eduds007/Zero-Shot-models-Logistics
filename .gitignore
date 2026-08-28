@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.jpg
+*.cache
 
 # LOCO raw data (downloaded/extracted, not committed) -- keeps dataset/*.py
 # scripts and dataset/results/*.csv trackable
@@ -21,6 +22,11 @@ dataset/loco_papersplit_val_paths.txt
 dataset/*.pt
 runs/
 weights/
+
+# SAM3 pseudo-labels generated from assets/frames_2fps -- regenerable via
+# generate_sam3_pseudo_dataset.py / split_pseudo_bank.py, not committed
+dataset/sam3_v6_pseudo/labels/
+dataset/sam3_v6_pseudo_split/labels/
 
 # generated demo output, not source
 assets/output_sam3.mp4
