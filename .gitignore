@@ -9,6 +9,16 @@ dataset/dataset/
 dataset/annotations/
 dataset/loco_eval_results.json
 
+# YOLO training artifacts, derived from the LOCO raw data above via
+# convert_loco_to_yolo.py -- regenerable, not committed
+dataset/yolo/
+dataset/yolo_runs/
+dataset/loco_train_paths.txt
+dataset/loco_val_paths.txt
+dataset/*.pt
+runs/
+weights/
+
 # generated demo output, not source
 assets/output_sam3.mp4
 
