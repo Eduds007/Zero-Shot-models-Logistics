@@ -72,7 +72,7 @@ def main():
     parser.add_argument("--dataset-root", default=".")
     parser.add_argument("--model-id", default="google/owlv2-base-patch16-ensemble")
     parser.add_argument("--threshold", type=float, default=0.1)
-    parser.add_argument("--results-csv", default="results/loco_eval_results.csv")
+    parser.add_argument("--results-csv", default="results/loco_eval_results_zeroshot.csv")
     parser.add_argument("--run", default=None, help="Run name, e.g. 'owlv2_v2'. Auto-incremented as 'owlv2_vN' if omitted.")
     parser.add_argument(
         "--message", required=True,

@@ -110,7 +110,7 @@ def main():
     parser.add_argument("--weights", required=True)
     parser.add_argument("--conf", type=float, default=0.001)
     parser.add_argument("--imgsz", type=int, default=960)
-    parser.add_argument("--results-csv", default="results/loco_eval_results.csv")
+    parser.add_argument("--results-csv", default="results/loco_eval_results_yolo.csv")
     parser.add_argument("--run", default=None)
     parser.add_argument("--message", required=True)
     args = parser.parse_args()

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Builds docs/index.html from dataset/results/loco_eval_results.csv.
+"""Builds docs/index.html and docs/yolo/index.html from the two LOCO result
+CSVs (dataset/results/loco_eval_results_zeroshot.csv and
+..._yolo.csv), linked together by a navbar so each model family gets its
+own page instead of one mixed table.
 
-Every number on the page is recomputed from the CSV — nothing here is
+Every number on the page is recomputed from its CSV — nothing here is
 hand-picked per run, so it stays correct as new rows are appended.
 Run it directly, or let .github/workflows/benchmark-report.yml run it
-on every push that touches the CSV.
+on every push that touches either CSV.
 """
 import csv
 import math
@@ -14,8 +17,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "dataset" / "results" / "loco_eval_results.csv"
-OUT_PATH = ROOT / "docs" / "index.html"
+RESULTS_DIR = ROOT / "dataset" / "results"
+DOCS_DIR = ROOT / "docs"
 
 FAMILY_RULES = [
     ("sam3", "SAM3", "cat-sam3"),
@@ -23,12 +26,74 @@ FAMILY_RULES = [
     ("mm_grounding_dino", "Grounding DINO · heavy", "cat-gdh"),
     ("grounding-dino-tiny", "Grounding DINO · tiny", "cat-gdt"),
     ("grounding_dino_tiny", "Grounding DINO · tiny", "cat-gdt"),
+    ("-world", "YOLO-World", "cat-yolow"),
+    ("yolov8", "YOLOv8 · fine-tuned", "cat-yolov8"),
 ]
 FALLBACK_COLOR_VARS = ["cat-x1", "cat-x2", "cat-x3", "cat-x4"]
 
+PAGES = [
+    {
+        "kind": "zeroshot",
+        "csv_path": RESULTS_DIR / "loco_eval_results_zeroshot.csv",
+        "out_path": DOCS_DIR / "index.html",
+        "nav_label": "Zero-Shot",
+        "href_self": "index.html",
+        "href_other": "yolo/index.html",
+        "title": "LOCO Zero-Shot Benchmark",
+        "dek": (
+            "Open-vocabulary detectors prompted with text descriptions of five logistics "
+            "object classes — no fine-tuning, no visual exemplars. Scored with COCO-style "
+            "AP/AR against LOCO ground truth. This page is rebuilt from the CSV by CI on "
+            "every push."
+        ),
+        "prompting_label": "Zero-shot / text",
+        "csv_name": "loco_eval_results_zeroshot.csv",
+        "source_scripts": "dataset/eval_loco.py · dataset/eval_loco_grounding_dino.py · dataset/eval_loco_owlv2.py",
+        "intro_bullet": (
+            "Everything here is zero-shot: models prompted with text only, no fine-tuning, no reference crops. "
+            "AP is not directly comparable to COCO-scale numbers — LOCO's vocabulary is out-of-distribution for most pretraining captions."
+        ),
+        "closing_bullet": (
+            "If zero-shot plateaus, fine-tuning is on the table — see the YOLO page for that track, "
+            "not a continuation of these run numbers."
+        ),
+    },
+    {
+        "kind": "yolo",
+        "csv_path": RESULTS_DIR / "loco_eval_results_yolo.csv",
+        "out_path": DOCS_DIR / "yolo" / "index.html",
+        "nav_label": "YOLO",
+        "href_self": "index.html",
+        "href_other": "../index.html",
+        "title": "LOCO YOLO Benchmark",
+        "dek": (
+            "YOLO-family detectors on LOCO: zero-shot YOLO-World (open-vocabulary text prompts) "
+            "alongside YOLOv8 fine-tuned on the LOCO train split. Scored with COCO-style AP/AR "
+            "against LOCO ground truth. This page is rebuilt from the CSV by CI on every push."
+        ),
+        "prompting_label": "YOLO-World zero-shot + YOLOv8 fine-tuned",
+        "csv_name": "loco_eval_results_yolo.csv",
+        "source_scripts": "dataset/eval_loco_yolo.py · dataset/eval_on_pseudo_bank.py",
+        "intro_bullet": (
+            "This page mixes two different training regimes: YOLO-World runs are zero-shot "
+            "(text-prompted, no fine-tuning) while YOLOv8 runs are fine-tuned on the LOCO train "
+            "split and evaluated on a held-out val split — their AP numbers are not directly "
+            "comparable to each other."
+        ),
+        "closing_bullet": (
+            "YOLO-World (zero-shot) and YOLOv8 (fine-tuned) are shown together for reference, not as a "
+            "fair head-to-head — compare within each regime, not across them."
+        ),
+    },
+]
+
 
 def family_of(model: str):
-    low = model.lower()
+    # Only match against the model identifier itself, not the parenthetical
+    # description -- descriptions can mention other model names in passing
+    # (e.g. a YOLOv8 self-check run whose message references "SAM3
+    # pseudo-label training bank"), which would otherwise misclassify it.
+    low = model.split("(", 1)[0].lower()
     for needle, name, css_var in FAMILY_RULES:
         if needle in low:
             return name, css_var
@@ -59,8 +124,8 @@ def fnum(v, digits=3):
     return "—" if v is None else f"{v:.{digits}f}"
 
 
-def load_rows():
-    with CSV_PATH.open(newline="", encoding="utf-8") as f:
+def load_rows(csv_path):
+    with csv_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = []
         for r in reader:
@@ -121,8 +186,8 @@ def jstr(s):
     )
 
 
-def build():
-    rows = load_rows()
+def build(csv_path, intro_bullet, closing_bullet):
+    rows = load_rows(csv_path)
     assign_fallback_colors(rows)
 
     categories = list(
@@ -251,10 +316,7 @@ def build():
     generated = date.today().isoformat()
 
     # ---- "reading these numbers" / "next up" — mechanically derived ----
-    reading_bullets = [
-        "Everything here is zero-shot: models prompted with text only, no fine-tuning, no reference crops. "
-        "AP is not directly comparable to COCO-scale numbers — LOCO's vocabulary is out-of-distribution for most pretraining captions.",
-    ]
+    reading_bullets = [intro_bullet]
     if best_ap50_row["ap_50"] and best_ap75_row["ap_75"]:
         gap_row = best_ap50_row
         reading_bullets.append(
@@ -295,7 +357,7 @@ def build():
         latest = latest_run_rows[-1]
         if latest["message"]:
             next_up.append(f"Latest logged experiment ({latest['run']}, {latest['date']}): {esc(latest['message'])}")
-    next_up.append("If zero-shot plateaus, fine-tuning is on the table — as a separate, clearly-labeled track, not a continuation of these run numbers.")
+    next_up.append(closing_bullet)
 
     return {
         "rows": rows,
@@ -328,8 +390,8 @@ TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LOCO Zero-Shot Benchmark</title>
-<meta name="description" content="Auto-generated from dataset/results/loco_eval_results.csv — regenerates on every push that touches the CSV.">
+<title>{page_title}</title>
+<meta name="description" content="Auto-generated from dataset/results/{csv_name} — regenerates on every push that touches the CSV.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{{
@@ -338,6 +400,7 @@ TEMPLATE = """<!doctype html>
     --accent:#D65A1F; --status-good:#2F8F5B; --status-warning:#B87A15; --status-critical:#C0392E;
     --status-good-bg:#E5F2EA; --status-warning-bg:#F8EEDC; --status-critical-bg:#F8E6E3;
     --cat-sam3:#00909E; --cat-gdt:#8054B8; --cat-gdh:#B23A5B; --cat-owl:#2E6FBE;
+    --cat-yolow:#5A8F1F; --cat-yolov8:#C4571B;
     --cat-x1:#B87A15; --cat-x2:#4C7A3E; --cat-x3:#8C5A2B; --cat-x4:#5A5FA6;
     --seq-0:#EAEEF0; --seq-1:#D3DADE; --seq-2:#A9B6BC; --seq-3:#78898F; --seq-4:#46595F; --seq-5:#17272C;
     --div-under:#2E6FBE; --div-neutral:#9A9C9A; --div-over:#C0392E;
@@ -350,6 +413,7 @@ TEMPLATE = """<!doctype html>
       --accent:#F0864A; --status-good:#5CBE8B; --status-warning:#E0A83D; --status-critical:#E1594C;
       --status-good-bg:#1B2E24; --status-warning-bg:#332A17; --status-critical-bg:#331E1A;
       --cat-sam3:#2FB6C4; --cat-gdt:#A084D6; --cat-gdh:#D8688A; --cat-owl:#6C9FE0;
+      --cat-yolow:#8FCB4C; --cat-yolov8:#E88A52;
       --cat-x1:#E0A83D; --cat-x2:#7FBE6B; --cat-x3:#C68A55; --cat-x4:#8C90D6;
       --seq-0:#1F2729; --seq-1:#2B3739; --seq-2:#3D4F52; --seq-3:#587277; --seq-4:#86A6AB; --seq-5:#CFE6E9;
       --div-under:#6C9FE0; --div-neutral:#7E8B8F; --div-over:#E1594C;
@@ -362,6 +426,7 @@ TEMPLATE = """<!doctype html>
     --accent:#F0864A; --status-good:#5CBE8B; --status-warning:#E0A83D; --status-critical:#E1594C;
     --status-good-bg:#1B2E24; --status-warning-bg:#332A17; --status-critical-bg:#331E1A;
     --cat-sam3:#2FB6C4; --cat-gdt:#A084D6; --cat-gdh:#D8688A; --cat-owl:#6C9FE0;
+    --cat-yolow:#8FCB4C; --cat-yolov8:#E88A52;
     --cat-x1:#E0A83D; --cat-x2:#7FBE6B; --cat-x3:#C68A55; --cat-x4:#8C90D6;
     --seq-0:#1F2729; --seq-1:#2B3739; --seq-2:#3D4F52; --seq-3:#587277; --seq-4:#86A6AB; --seq-5:#CFE6E9;
     --div-under:#6C9FE0; --div-neutral:#7E8B8F; --div-over:#E1594C;
@@ -372,6 +437,13 @@ TEMPLATE = """<!doctype html>
   ::selection{{ background: color-mix(in srgb, var(--accent) 30%, transparent); }}
   .sheet{{ max-width:1180px; margin:0 auto; padding:2.5rem 1.5rem 5rem; }}
   a{{ color:var(--accent); }}
+  .navbar{{ position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow); }}
+  .navbar-inner{{ max-width:1180px; margin:0 auto; padding:0 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; height:3.1rem; }}
+  .navbar .brand{{ font-family:"Archivo", ui-sans-serif, sans-serif; font-weight:800; font-size:.95rem; letter-spacing:-.01em; color:var(--ink); }}
+  .navlinks{{ display:flex; gap:.35rem; }}
+  .navlinks a{{ font-family:"IBM Plex Mono", monospace; font-size:.76rem; letter-spacing:.03em; text-transform:uppercase; text-decoration:none; color:var(--ink-secondary); padding:.42rem .85rem; border-radius:3px; border:1px solid transparent; transition:background .15s, color .15s, border-color .15s; }}
+  .navlinks a:hover{{ background:var(--surface-hover); color:var(--ink); }}
+  .navlinks a.active{{ background:var(--surface-2); color:var(--accent); border-color:var(--border); font-weight:600; }}
   code, .mono{{ font-family:"IBM Plex Mono", ui-monospace, "SF Mono", monospace; font-variant-numeric:tabular-nums; }}
   h1,h2,h3{{ font-family:"Archivo", ui-sans-serif, sans-serif; text-wrap:balance; margin:0; }}
   .eyebrow{{ font-family:"IBM Plex Mono", monospace; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-muted); }}
@@ -466,20 +538,26 @@ TEMPLATE = """<!doctype html>
 </style>
 </head>
 <body>
+<nav class="navbar">
+  <div class="navbar-inner">
+    <span class="brand">LOCO Benchmark</span>
+    <div class="navlinks">{nav_html}</div>
+  </div>
+</nav>
 <div class="sheet">
 
   <header class="titleblock">
     <div>
-      <div class="eyebrow">Evaluation report · dataset/results/loco_eval_results.csv · auto-generated</div>
-      <h1>LOCO Zero-Shot Benchmark</h1>
-      <p class="dek">Open-vocabulary detectors prompted with text descriptions of five logistics object classes — no fine-tuning, no visual exemplars. Scored with COCO-style AP/AR against LOCO ground truth. This page is rebuilt from the CSV by CI on every push.</p>
+      <div class="eyebrow">Evaluation report · dataset/results/{csv_name} · auto-generated</div>
+      <h1>{page_title}</h1>
+      <p class="dek">{page_dek}</p>
     </div>
     <div class="tb-meta">
       <div class="tb-field"><span class="k">Dataset</span><span class="v">LOCO · loco-all-v1</span></div>
       <div class="tb-field"><span class="k">Sample</span><span class="v">{sample_n} images</span></div>
       <div class="tb-field"><span class="k">Categories</span><span class="v">{n_cats}</span></div>
       <div class="tb-field"><span class="k">Runs logged</span><span class="v">{n_runs}</span></div>
-      <div class="tb-field"><span class="k">Prompting</span><span class="v">Zero-shot / text</span></div>
+      <div class="tb-field"><span class="k">Prompting</span><span class="v">{prompting_label}</span></div>
       <div class="tb-field"><span class="k">Generated</span><span class="v">{generated}</span></div>
     </div>
   </header>
@@ -554,7 +632,7 @@ TEMPLATE = """<!doctype html>
       <div>
         <div class="fig">FIG. 04</div>
         <h2>All logged runs</h2>
-        <p>Every row from <code>loco_eval_results.csv</code>, per category and OVERALL.</p>
+        <p>Every row from <code>{csv_name}</code>, per category and OVERALL.</p>
       </div>
     </div>
     <div class="tablewrap">
@@ -585,7 +663,7 @@ TEMPLATE = """<!doctype html>
   </section>
 
   <footer>
-    <span>Source: <code>dataset/results/loco_eval_results.csv</code> · <code>dataset/eval_loco.py</code> · <code>dataset/eval_loco_grounding_dino.py</code></span>
+    <span>Source: <code>dataset/results/{csv_name}</code> · <code>{source_scripts}</code></span>
     <span>{n_runs} runs · {n_families} model families · {n_cats} LOCO categories</span>
   </footer>
 
@@ -719,7 +797,18 @@ TEMPLATE = """<!doctype html>
 """
 
 
-def render(ctx: dict) -> str:
+def nav_html(current_kind: str) -> str:
+    current_page = next(p for p in PAGES if p["kind"] == current_kind)
+    links = []
+    for page in PAGES:
+        is_current = page["kind"] == current_kind
+        href = page["href_self"] if is_current else current_page["href_other"]
+        cls = " active" if is_current else ""
+        links.append(f'<a href="{href}" class="{cls.strip()}">{esc(page["nav_label"])}</a>')
+    return "".join(links)
+
+
+def render(ctx: dict, page: dict) -> str:
     import json
 
     def num_or_dash(v, digits=3):
@@ -794,6 +883,12 @@ def render(ctx: dict) -> str:
     ]
 
     return TEMPLATE.format(
+        nav_html=nav_html(page["kind"]),
+        page_title=esc(page["title"]),
+        page_dek=esc(page["dek"]),
+        csv_name=page["csv_name"],
+        prompting_label=esc(page["prompting_label"]),
+        source_scripts=page["source_scripts"],
         n_cats=len(ctx["categories"]),
         n_runs=len(ctx["run_ids"]),
         n_families=len(ctx["families"]),
@@ -824,11 +919,15 @@ def render(ctx: dict) -> str:
 
 
 def main():
-    ctx = build()
-    html = render(ctx)
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(html, encoding="utf-8")
-    print(f"wrote {OUT_PATH} ({len(html):,} bytes) from {len(ctx['rows'])} CSV rows, {len(ctx['run_ids'])} runs")
+    for page in PAGES:
+        ctx = build(page["csv_path"], page["intro_bullet"], page["closing_bullet"])
+        html = render(ctx, page)
+        page["out_path"].parent.mkdir(parents=True, exist_ok=True)
+        page["out_path"].write_text(html, encoding="utf-8")
+        print(
+            f"wrote {page['out_path']} ({len(html):,} bytes) from "
+            f"{len(ctx['rows'])} CSV rows, {len(ctx['run_ids'])} runs"
+        )
 
 
 if __name__ == "__main__":

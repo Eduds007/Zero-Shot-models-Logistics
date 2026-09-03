@@ -1,7 +1,7 @@
 """
 Builds a pseudo-labeled YOLO-format dataset from the 2fps video frames
 (assets/frames_2fps), using SAM3 with the exact sam3_v6 config (see
-dataset/results/loco_eval_results.csv, run 'sam3_v6'):
+dataset/results/loco_eval_results_zeroshot.csv, run 'sam3_v6'):
   - confidence_threshold=0.5 for small_load_carrier, pallet, stillage, pallet_truck
   - confidence_threshold=0.05 for forklift, then capped to the top-2
     highest-score detections

@@ -16,7 +16,7 @@ carrier, forklift, pallet, stillage, pallet truck), generated automatically from
 **These are NOT human-verified ground-truth annotations.** Every box comes from
 SAM3 (`facebook/sam3`, zero-shot, text-prompted), run with the exact configuration
 of run `sam3_v6` in this project's benchmark
-(`dataset/results/loco_eval_results.csv`). Treat this as a pseudo-labeled / weakly
+(`dataset/results/loco_eval_results_zeroshot.csv`). Treat this as a pseudo-labeled / weakly
 supervised dataset, not a validated benchmark.
 
 ## Source video and frame filtering
@@ -44,7 +44,7 @@ For each kept frame, SAM3 was prompted once per category with:
 
 The forklift threshold was deliberately lowered and capped (rather than left at
 0.5) because at 0.5 SAM3 found almost no forklifts in this project's LOCO
-benchmark; see run `sam3_v6` in `dataset/results/loco_eval_results.csv` for the
+benchmark; see run `sam3_v6` in `dataset/results/loco_eval_results_zeroshot.csv` for the
 zero-shot accuracy numbers this config produces on the (human-annotated) LOCO
 dataset itself, for context on how reliable these classes are.
 

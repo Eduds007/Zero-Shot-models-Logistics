@@ -79,7 +79,7 @@ def main():
     parser.add_argument("--conf", type=float, default=0.001, help="Low threshold -- COCOeval needs the full score range.")
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--batch", type=int, default=32)
-    parser.add_argument("--results-csv", default="results/loco_eval_results.csv")
+    parser.add_argument("--results-csv", default="results/loco_eval_results_yolo.csv")
     parser.add_argument("--run", default=None, help="Run name, e.g. 'yolov8_v1'. Auto-incremented as 'yolov8_vN' if omitted.")
     parser.add_argument(
         "--message", required=True,
