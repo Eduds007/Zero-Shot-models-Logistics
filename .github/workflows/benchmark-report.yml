@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "dataset/results/loco_eval_results.csv"
+      - "dataset/results/loco_eval_results_zeroshot.csv"
+      - "dataset/results/loco_eval_results_yolo.csv"
       - "dataset/generate_report.py"
       - ".github/workflows/benchmark-report.yml"
   workflow_dispatch: {}

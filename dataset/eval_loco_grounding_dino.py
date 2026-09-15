@@ -109,7 +109,7 @@ def main():
                          help="grounding_dino = IDEA-Research checkpoints; mm_grounding_dino = openmmlab-community checkpoints")
     parser.add_argument("--box-threshold", type=float, default=0.3)
     parser.add_argument("--text-threshold", type=float, default=0.25)
-    parser.add_argument("--results-csv", default="results/loco_eval_results.csv")
+    parser.add_argument("--results-csv", default="results/loco_eval_results_zeroshot.csv")
     parser.add_argument("--run", default=None, help="Run name, e.g. 'gdino_v3'. Auto-incremented as 'gdino_vN' if omitted.")
     parser.add_argument(
         "--message", required=True,

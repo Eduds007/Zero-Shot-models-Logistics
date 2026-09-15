@@ -167,7 +167,7 @@ def _ap_at_iou(coco_gt, coco_dt, iou, cat_ids=None):
     return ce.stats[0] if ce.stats is not None else float("nan")
 
 
-def evaluate(gt, results, message, elapsed_sec, run_name=None, run_prefix="sam3", csv_path="results/loco_eval_results.csv"):
+def evaluate(gt, results, message, elapsed_sec, run_name=None, run_prefix="sam3", csv_path="results/loco_eval_results_zeroshot.csv"):
     if not message or not message.strip():
         raise ValueError(
             "message is required: describe what this run's prompts/config represent "
@@ -262,7 +262,7 @@ def main():
     parser.add_argument("--dataset-root", default=".")
     parser.add_argument("--confidence-threshold", type=float, default=0.5)
     parser.add_argument("--out", default="loco_eval_results.json")
-    parser.add_argument("--results-csv", default="results/loco_eval_results.csv")
+    parser.add_argument("--results-csv", default="results/loco_eval_results_zeroshot.csv")
     parser.add_argument("--run", default=None, help="Run name, e.g. 'sam3_v3'. Auto-incremented as 'sam3_vN' if omitted.")
     parser.add_argument(
         "--message", required=True,
