@@ -29,6 +29,17 @@ dataset/sam3_v6_pseudo/labels/
 dataset/sam3_v6_pseudo_split/labels/
 dataset/sam3_v6_pseudo_split_random/labels/
 
+# SAM3 pseudo-labels for LOCO images with no official annotation -- regenerable
+# via generate_sam3_loco_unannotated.py, held for manual review before being
+# used for anything, not committed
+dataset/loco_unannotated_sam3_pseudo/
+
+# 6-class (5 LOCO + iw_hub) SAM3 pseudo-labels for the robot-class fine-tune
+# experiments -- regenerable via add_robot_class_to_pseudo.py (video-only) and
+# build_mixed_robot_dataset.py (video + LOCO mix), not committed
+dataset/sam3_v6_pseudo_split_with_robot/labels/
+dataset/sam3_v6_pseudo_mixed_with_robot/labels/
+
 # generated demo output, not source
 assets/output_sam3.mp4
 

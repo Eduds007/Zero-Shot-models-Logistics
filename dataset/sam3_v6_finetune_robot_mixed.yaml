@@ -1,0 +1,11 @@
+path: /home/go39sin/Desktop/Zero-Shot-models-Logistics/dataset/sam3_v6_pseudo_mixed_with_robot
+train: images/train
+val: images/val
+nc: 6
+names:
+  0: small_load_carrier
+  1: forklift
+  2: pallet
+  3: stillage
+  4: pallet_truck
+  5: iw_hub
