@@ -68,12 +68,26 @@ def load_production_registry():
 
 
 def known_classes(registry, production):
-    """Classes the gate must not regress: whatever production currently
-    knows, or the 5 LOCO classes as a floor if there's no production model
-    promoted yet."""
+    """Classes the gate must evaluate: whatever production currently knows
+    (or the 5 LOCO classes as a floor if there's no production model
+    promoted yet), UNION every source=pipeline class in class_registry.json.
+
+    Without the union, a brand-new pipeline class (e.g. iw_hub before its
+    first successful promotion) is absent from production['classes'] and so
+    never gets evaluated against its fixed held-out set by this gate at
+    all -- its AP_50 only ever came from run_finetune.py's own internal
+    training-batch validation split, which isn't guaranteed to be the same
+    images across runs. Appending it here means it's checked against
+    MIN_AP50_FOR_NEW_CLASS (via decide_promotion's pipeline_class_names
+    branch) starting with its very first promotion attempt."""
     if production and production.get("classes"):
-        return production["classes"]
-    return [c["name"] for c in db.loco_classes(registry)]
+        classes = list(production["classes"])
+    else:
+        classes = [c["name"] for c in db.loco_classes(registry)]
+    for c in db.pipeline_classes(registry):
+        if c["name"] not in classes:
+            classes.append(c["name"])
+    return classes
 
 
 def yolo_dir_to_coco_gt(images_dir, labels_dir, category_id, category_name):
@@ -251,8 +265,17 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
     print(f"current production: {'none yet (first promotion)' if not has_production else PRODUCTION_WEIGHTS}")
 
     candidate_scores = evaluate_model(weights, registry, target_classes, db.DATASET_ROOT)
+    # Only evaluate production on classes ITS OWN registry claims to know --
+    # evaluating it on a class it never learned (e.g. iw_hub before its first
+    # promotion) always scores 0.0 (the model structurally can't predict a
+    # class index it has no head for), and a candidate clearing that phantom
+    # 0.0 baseline would trivially "pass" the regression check in
+    # decide_promotion() instead of being held to MIN_AP50_FOR_NEW_CLASS via
+    # its proper first-promotion floor check.
+    production_known = set(production["classes"]) if has_production else set()
     production_scores = (
-        evaluate_model(PRODUCTION_WEIGHTS, registry, target_classes, db.DATASET_ROOT)
+        evaluate_model(PRODUCTION_WEIGHTS, registry, [c for c in target_classes if c in production_known],
+                       db.DATASET_ROOT)
         if has_production else {}
     )
 

@@ -49,3 +49,13 @@ assets/output_sam3.mp4
 docs/
 .venv/
 .txt
+
+# pretrained checkpoint auto-downloaded to the repo root by ultralytics when
+# no local baseline path is given (e.g. training a new-scale baseline) --
+# same "not committed" treatment as dataset/*.pt and runs/ above
+/yolov8l.pt
+
+# per-round training batches (build_training_batch.py + copy_paste_augment.py
+# output) -- regenerated fresh every fine-tune round, not committed, same
+# philosophy as runs/ above
+dataset/pipeline/training_batches/

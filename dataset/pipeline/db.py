@@ -11,6 +11,11 @@ frame is checked against every non-LOCO class the registry knows about, so
 adding a class later needs no schema change):
   sam3_status:    pending -> pass | reject
   review_status:  NULL (while sam3_status != 'pass') -> pending -> approved | rejected
+      -> held_out_test (build_fixed_testset.py carves a fixed slice of the
+      approved pool out into dataset/pipeline/fixed_testset/ permanently;
+      this status exists only so approved_pool() naturally excludes those
+      rows forever, without losing the row's history the way a DELETE
+      would)
   incorporated_in_batch: NULL until the first build_training_batch.py run
       after approval considers it (does NOT mean "consumed forever" -- see
       build_training_batch.py, approved images stay eligible for replay
@@ -107,9 +112,15 @@ def count_unincorporated_approved_total(conn, registry=None):
 
 def approved_pool(conn, class_name):
     """Every approved row for this class, ever -- eligible for replay sampling
-    regardless of incorporated_in_batch (see module docstring)."""
+    regardless of incorporated_in_batch (see module docstring).
+
+    ORDER BY id is required, not cosmetic: build_training_batch.py shuffles
+    this list with a fixed random.seed(SEED) expecting a reproducible split
+    across rounds -- without a deterministic base order, SQLite doesn't
+    guarantee row order for an unordered SELECT, so the same seed could
+    silently shuffle a differently-ordered list each run."""
     return conn.execute(
-        "SELECT id, local_path FROM frames WHERE class_name = ? AND review_status = 'approved'",
+        "SELECT id, local_path FROM frames WHERE class_name = ? AND review_status = 'approved' ORDER BY id",
         (class_name,),
     ).fetchall()
 

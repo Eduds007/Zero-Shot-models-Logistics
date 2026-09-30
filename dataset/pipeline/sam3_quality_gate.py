@@ -6,8 +6,17 @@ validated in generate_sam3_loco_unannotated.py: mean detection confidence
 pseudo-label -- same pseudo-labeling convention already used everywhere
 else in this dataset, no manual box drawing.
 
+Frames scoring above --auto-approve-threshold skip human review entirely
+and land straight in approved_pending_training/ (review_status='approved'
+directly, same as a human approval). In this project's real data, mean_conf
+lands at 0.87-0.90+ when the target is clearly and correctly detected, vs.
+0.5-0.7 for genuinely ambiguous frames -- so this cuts review volume for the
+easy cases without touching the band where SAM3 could plausibly be wrong.
+Pass --auto-approve-threshold 2.0 (or any value > 1.0) to disable this and
+send every passing frame to human review, as before.
+
 Usage:
-    python sam3_quality_gate.py [--confidence-keep-bar 0.5] [--limit N]
+    python sam3_quality_gate.py [--confidence-keep-bar 0.5] [--auto-approve-threshold 0.85] [--limit N]
 """
 
 import argparse
@@ -17,6 +26,7 @@ import statistics
 import db
 
 CONFIDENCE_KEEP_BAR = 0.5
+AUTO_APPROVE_THRESHOLD = 0.85
 
 
 def run_sam3_on_frame(processor, image, prompt):
@@ -27,10 +37,10 @@ def run_sam3_on_frame(processor, image, prompt):
     return list(zip(boxes, scores))
 
 
-def write_pseudo_label(class_name, class_idx, local_path, detections, width, height):
-    staging_dir = os.path.join(db.PIPELINE_ROOT, "staging_for_review", class_name)
-    images_dir = os.path.join(staging_dir, "images")
-    labels_dir = os.path.join(staging_dir, "labels")
+def write_pseudo_label(dest_root, class_name, class_idx, local_path, detections, width, height):
+    dest_dir = os.path.join(dest_root, class_name)
+    images_dir = os.path.join(dest_dir, "images")
+    labels_dir = os.path.join(dest_dir, "labels")
     os.makedirs(images_dir, exist_ok=True)
     os.makedirs(labels_dir, exist_ok=True)
 
@@ -54,6 +64,9 @@ def write_pseudo_label(class_name, class_idx, local_path, detections, width, hei
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--confidence-keep-bar", type=float, default=CONFIDENCE_KEEP_BAR)
+    parser.add_argument("--auto-approve-threshold", type=float, default=AUTO_APPROVE_THRESHOLD,
+                         help="Frames scoring above this skip human review and go straight to "
+                              "approved_pending_training/. Pass a value > 1.0 to disable.")
     parser.add_argument("--limit", type=int, default=None, help="Process at most N pending rows (for testing)")
     args = parser.parse_args()
 
@@ -80,7 +93,7 @@ def main():
     model = build_sam3_image_model()
     processor = Sam3Processor(model, confidence_threshold=args.confidence_keep_bar)
 
-    n_pass = n_reject = 0
+    n_pass = n_auto_approved = n_reject = 0
     for i, (row_id, class_name, local_path) in enumerate(pending):
         cls = db.class_by_name(class_name, registry)
         image = Image.open(local_path).convert("RGB")
@@ -89,9 +102,11 @@ def main():
         scores = [s for _, s in detections]
         mean_conf = statistics.mean(scores) if scores else 0.0
         passes = mean_conf > args.confidence_keep_bar
+        auto_approve = passes and mean_conf > args.auto_approve_threshold
 
+        status_label = "AUTO-APPROVED" if auto_approve else ("PASS" if passes else "reject")
         print(f"[{i + 1}/{len(pending)}] {os.path.basename(local_path)} ({class_name}): "
-              f"{len(detections)} det, mean_conf={mean_conf:.3f} -> {'PASS' if passes else 'reject'}")
+              f"{len(detections)} det, mean_conf={mean_conf:.3f} -> {status_label}")
 
         if not passes:
             conn.execute(
@@ -101,7 +116,23 @@ def main():
             n_reject += 1
             continue
 
-        write_pseudo_label(class_name, cls["class_idx"], local_path, detections, w, h)
+        if auto_approve:
+            dst_img = write_pseudo_label(
+                os.path.join(db.PIPELINE_ROOT, "approved_pending_training"),
+                class_name, cls["class_idx"], local_path, detections, w, h,
+            )
+            conn.execute(
+                "UPDATE frames SET sam3_status = 'pass', sam3_mean_confidence = ?, "
+                "review_status = 'approved', reviewed_at = datetime('now'), local_path = ? WHERE id = ?",
+                (mean_conf, dst_img, row_id),
+            )
+            n_auto_approved += 1
+            continue
+
+        write_pseudo_label(
+            os.path.join(db.PIPELINE_ROOT, "staging_for_review"),
+            class_name, cls["class_idx"], local_path, detections, w, h,
+        )
         conn.execute(
             "UPDATE frames SET sam3_status = 'pass', sam3_mean_confidence = ?, review_status = 'pending' "
             "WHERE id = ?",
@@ -110,7 +141,7 @@ def main():
         n_pass += 1
 
     conn.commit()
-    print(f"\n=== summary ===\npass: {n_pass}\nreject: {n_reject}")
+    print(f"\n=== summary ===\nauto-approved: {n_auto_approved}\npass (needs review): {n_pass}\nreject: {n_reject}")
 
 
 if __name__ == "__main__":
