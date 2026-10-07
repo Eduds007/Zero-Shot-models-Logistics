@@ -16,6 +16,7 @@ schedule (patience=0) and evaluate last.pt instead.
 Usage:
     python train_with_sam3_loco.py --n 5000 --variant _wh235           # SAM3-only labels
     python train_with_sam3_loco.py --n 5000 --variant _wh235_hybrid    # after hybrid_relabel_sam3_loco.py
+    python train_with_sam3_loco.py --n 5000 --variant _wh235_apple     # after apple_threshold_relabel.py
 """
 
 import argparse

@@ -67,7 +67,9 @@ def sample(n, annotated_names, subsets):
     return picked
 
 
-def label(paths, out_dir, registry):
+def label(paths, out_dir, registry, conf=CONF, with_scores=False):
+    """with_scores appends each box's SAM3 score as a 6th column (not
+    YOLO-trainable as is -- input for a later per-class threshold step)."""
     import torch
     from PIL import Image
     from sam3 import build_sam3_image_model
@@ -76,7 +78,7 @@ def label(paths, out_dir, registry):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
-    processor = Sam3Processor(build_sam3_image_model(), confidence_threshold=CONF)
+    processor = Sam3Processor(build_sam3_image_model(), confidence_threshold=conf)
 
     loco = db.loco_classes(registry)
     img_dir, lbl_dir = os.path.join(out_dir, "images"), os.path.join(out_dir, "labels")
@@ -94,10 +96,11 @@ def label(paths, out_dir, registry):
         lines = []
         for c in loco:
             state = processor.set_text_prompt(prompt=CATEGORY_PROMPTS[c["name"]], state=state)
-            for x0, y0, x1, y1 in state["boxes"].cpu().tolist():
+            for (x0, y0, x1, y1), score in zip(state["boxes"].cpu().tolist(), state["scores"].cpu().tolist()):
                 cx, cy = (x0 + x1) / 2 / w, (y0 + y1) / 2 / h
                 bw, bh = (x1 - x0) / w, (y1 - y0) / h
-                lines.append(f"{c['class_idx']} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}")
+                line = f"{c['class_idx']} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}"
+                lines.append(f"{line} {score:.4f}" if with_scores else line)
                 counts[c["name"]] += 1
         dst = os.path.join(img_dir, name)
         if not os.path.exists(dst):
@@ -114,6 +117,9 @@ def main():
     parser.add_argument("--n", type=int, default=5000)
     parser.add_argument("--subsets", type=int, nargs="+", default=[2, 3, 5],
                         help="LOCO subsets (warehouses) to sample; default = the official train warehouses")
+    parser.add_argument("--scored-conf", type=float, default=None,
+                        help="keep every box down to this SAM3 score and write the score as a 6th column, "
+                             "into sam3_labeled_<n><tag>_scored (for apple_threshold_relabel.py)")
     args = parser.parse_args()
     registry = db.load_class_registry()
     download_and_extract()
@@ -121,8 +127,9 @@ def main():
         annotated = {img["file_name"] for img in json.load(f)["images"]}
     paths = sample(args.n, annotated, args.subsets)
     tag = "" if args.subsets == [1, 2, 3, 4, 5] else "_wh" + "".join(map(str, args.subsets))
-    out_dir = os.path.join(ROOT, f"sam3_labeled_{args.n}{tag}")
-    counts = label(paths, out_dir, registry)
+    scored = args.scored_conf is not None
+    out_dir = os.path.join(ROOT, f"sam3_labeled_{args.n}{tag}{'_scored' if scored else ''}")
+    counts = label(paths, out_dir, registry, conf=args.scored_conf if scored else CONF, with_scores=scored)
     print(f"SAM3 LABELING DONE: {len(paths)} images -> {out_dir}; boxes (this run): {counts}", flush=True)
 
 
