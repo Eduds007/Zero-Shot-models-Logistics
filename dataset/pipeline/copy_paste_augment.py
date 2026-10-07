@@ -45,7 +45,7 @@ def _write_yolo_labels(path, boxes):
         f.write("\n".join(lines) + ("\n" if lines else ""))
 
 
-def augment(batch_dir, class_name, pastes_per_source=3, scale_range=(0.6, 1.4), seed=0):
+def augment(batch_dir, class_name, pastes_per_source=3, scale_range=(0.6, 1.4), seed=0, max_sources=None):
     random.seed(seed)
     registry = db.load_class_registry()
     cls = db.class_by_name(class_name, registry)
@@ -65,6 +65,13 @@ def augment(batch_dir, class_name, pastes_per_source=3, scale_range=(0.6, 1.4), 
         raise SystemExit(f"no '{class_name}' images found in {images_dir} -- run build_training_batch.py first")
     if not backgrounds:
         raise SystemExit(f"no background images (without '{class_name}') found in {images_dir}")
+
+    # Classes with many instances per image (e.g. pallet_truck) can otherwise
+    # generate a wildly disproportionate volume of synthetic images relative
+    # to sparser classes -- cap how many source images get processed so one
+    # class's augmentation can't dominate the batch's composition.
+    if max_sources is not None and len(sources) > max_sources:
+        sources = random.sample(sources, max_sources)
 
     n_written = 0
     for src_fname in sources:
@@ -119,8 +126,12 @@ def main():
     parser.add_argument("--batch-dir", required=True)
     parser.add_argument("--class-name", default="iw_hub")
     parser.add_argument("--pastes-per-source", type=int, default=3)
+    parser.add_argument("--max-sources", type=int, default=None,
+                         help="Cap the number of source images processed (randomly sampled), for classes "
+                              "with many instances per image that would otherwise generate a "
+                              "disproportionate volume of synthetic images")
     args = parser.parse_args()
-    augment(args.batch_dir, args.class_name, args.pastes_per_source)
+    augment(args.batch_dir, args.class_name, args.pastes_per_source, max_sources=args.max_sources)
 
 
 if __name__ == "__main__":

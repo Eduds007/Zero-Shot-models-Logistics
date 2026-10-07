@@ -47,7 +47,14 @@ CLS_PW = 0.0  # ultralytics' own default (disabled); 1.0 = full inverse-frequenc
 
 def finetune(data_yaml, run_name, baseline=BASELINE, epochs=30, imgsz=960,
              teacher_weights=None, dis_weight=DIS_WEIGHT, freeze=FREEZE_LAYERS, cls_pw=CLS_PW,
-             mask_loco_cls_grad=False):
+             mask_loco_cls_grad=False, batch=-1, seed=0, patience=10):
+    """batch=-1 lets ultralytics' AutoBatch size the batch from the GPU memory
+    free at that moment -- on a shared GPU that silently changes between runs
+    (4 vs 16 has been observed), so pass a fixed batch when comparing runs.
+
+    patience=0 disables early stopping (fixed 30-epoch schedule); use it
+    with weights/last.pt when the batch has no val split you trust for
+    picking best.pt."""
     from ultralytics import YOLO
 
     if not os.path.exists(baseline):
@@ -69,8 +76,9 @@ def finetune(data_yaml, run_name, baseline=BASELINE, epochs=30, imgsz=960,
     model.train(
         data=data_yaml,
         epochs=epochs,
-        patience=10,
-        batch=-1,
+        patience=patience,
+        batch=batch,
+        seed=seed,
         imgsz=imgsz,
         cls=1.0,
         cls_pw=cls_pw,

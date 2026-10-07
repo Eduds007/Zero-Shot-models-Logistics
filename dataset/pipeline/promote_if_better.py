@@ -7,14 +7,17 @@ list). Promoting a candidate that regresses ANY known class -- even one
 this pipeline only recently taught it -- defeats the point of the pipeline,
 so every one of those classes is checked, not just the newest.
 
-Promotion rule: for every class known to current production, the
-candidate's AP_50 must be >= production's AP_50 - REGRESSION_TOLERANCE.
+Promotion rule: for every class known to current production, the candidate
+is rejected only if it is *demonstrably* worse -- the 95% confidence
+interval of AP_50(candidate) - AP_50(production), from a paired bootstrap
+over the same test images (two_model_gate.paired_bootstrap), lies entirely
+below REGRESSION_TOLERANCE. A plain point-estimate threshold of -0.01 is
+smaller than the run-to-run noise measured between training seeds (up to
+~0.05 AP_50 on the weak classes), so it rejected candidates on noise.
 AP_50 here is the same 0.0-1.0 fraction eval_loco.py has always reported
 (e.g. "AP_50 OVERALL 0.257" in this repo's own history) -- NOT a 0-100
-percentage -- so the default tolerance of -0.01 means "at most 1
-percentage point worse," absorbing run-to-run measurement noise without
-allowing real forgetting. A class with no current production baseline yet
-(its first promotion) only needs to clear MIN_AP50_FOR_NEW_CLASS.
+percentage. A class with no current production baseline yet (its first
+promotion) only needs to clear MIN_AP50_FOR_NEW_CLASS.
 
 Reuses the exact COCOeval pipeline every prior experiment in this repo used
 (eval_loco.py's build_gt_subset/_run_coco_eval/evaluate) and the YOLO ->
@@ -32,7 +35,7 @@ Needs, alongside the candidate weights:
 
 Usage:
     python promote_if_better.py --run-name loco_finetune_pipeline_v3 \
-        --weights ../../runs/detect/yolo_runs/loco_finetune_pipeline_v3/weights/best.pt
+        --weights ../../runs/detect/yolo_runs/loco_finetune_pipeline_v3/weights/best.pt [--dry-run]
 """
 
 import argparse
@@ -48,8 +51,21 @@ import db
 sys.path.insert(0, db.DATASET_ROOT)
 import eval_loco  # noqa: E402
 
-REGRESSION_TOLERANCE = -0.01  # AP_50 fraction (0.0-1.0 scale); candidate may be at most 1 point worse
+REGRESSION_TOLERANCE = -0.01  # AP_50 fraction (0.0-1.0 scale); reject only if the whole 95% CI of the drop is below it
 MIN_AP50_FOR_NEW_CLASS = 0.10
+
+# AP_50 is meant to be computed by sweeping the whole precision-recall curve
+# (standard COCOeval practice uses conf~0.001 for exactly this reason) --
+# using conf=0.5 as a pre-filter before detections even reach COCOeval
+# silently discards real, lower-confidence true positives and understates
+# every class's AP_50, disproportionately so for weaker/rarer classes whose
+# correct detections skew lower-confidence to begin with (forklift's AP_50
+# on the official LOCO val jumped from 0.144 to 0.183 once this was fixed,
+# pallet_truck's nearly tripled from 0.077 to 0.206). conf is still exposed
+# as a predict_yolo() parameter for callers that genuinely want a filtered
+# detection list (e.g. live inference), just no longer defaulted that way
+# for AP computation.
+AP_CONFIDENCE_THRESHOLD = 0.001
 
 PRODUCTION_DIR = os.path.join(db.PROJECT_ROOT, "runs", "detect", "production")
 PRODUCTION_WEIGHTS = os.path.join(PRODUCTION_DIR, "best.pt")
@@ -97,7 +113,10 @@ def yolo_dir_to_coco_gt(images_dir, labels_dir, category_id, category_name):
     import cv2
 
     images, annotations = [], []
-    next_ann_id = 0
+    # Must start at 1: COCOeval stores a detection's matched gt *id* in
+    # dtMatches and treats 0 as "unmatched", so an annotation with id 0 can
+    # never count as a true positive.
+    next_ann_id = 1
     for i, fname in enumerate(sorted(os.listdir(images_dir))):
         if not fname.lower().endswith((".jpg", ".jpeg", ".png")):
             continue
@@ -126,7 +145,7 @@ def yolo_dir_to_coco_gt(images_dir, labels_dir, category_id, category_name):
             "categories": [{"id": category_id, "name": category_name}]}
 
 
-def predict_yolo(weights_path, gt, class_idx_to_cat_id, conf=0.5, imgsz=960, device=0, batch=32):
+def predict_yolo(weights_path, gt, class_idx_to_cat_id, conf=AP_CONFIDENCE_THRESHOLD, imgsz=960, device=0, batch=32):
     """gt['images'] entries need an already-resolved 'path'. Keeps only
     detections whose class index is in class_idx_to_cat_id -- e.g. an
     iw_hub-aware model's other 5 heads are irrelevant when scoring against
@@ -178,10 +197,15 @@ def ap50_per_category(gt, results):
 
 
 def decide_promotion(target_classes, candidate_scores, production_scores, pipeline_class_names,
-                      regression_tolerance=REGRESSION_TOLERANCE,
+                      diff_ci, regression_tolerance=REGRESSION_TOLERANCE,
                       min_ap50_new_class=MIN_AP50_FOR_NEW_CLASS):
     """Pure decision logic, kept separate from I/O/inference so it can be
     unit-tested without a GPU. Returns (promote: bool, failures: list[str]).
+
+    diff_ci: {class_name: (lo, hi)}, the 95% CI of candidate - production
+    AP_50 for every class production knows. A class fails only when hi <
+    regression_tolerance, i.e. the candidate is worse by more than the
+    tolerance with 95% confidence.
 
     The min_ap50_new_class floor only applies to classes this PIPELINE is
     introducing (source=pipeline in class_registry.json, e.g. iw_hub) the
@@ -198,10 +222,12 @@ def decide_promotion(target_classes, candidate_scores, production_scores, pipeli
             continue
         if name in production_scores:
             prod = production_scores[name]
-            if cand < prod + regression_tolerance:
+            lo, hi = diff_ci[name]
+            if hi < regression_tolerance:
                 failures.append(
-                    f"{name}: candidate AP_50={cand:.3f} < production AP_50={prod:.3f} "
-                    f"- tolerance {regression_tolerance} (would regress this class)"
+                    f"{name}: candidate AP_50={cand:.3f} vs production {prod:.3f}, 95% CI of the "
+                    f"difference [{lo:+.3f}, {hi:+.3f}] entirely below {regression_tolerance} "
+                    f"(demonstrably regresses this class)"
                 )
         elif name in pipeline_class_names and cand < min_ap50_new_class:
             failures.append(
@@ -211,13 +237,13 @@ def decide_promotion(target_classes, candidate_scores, production_scores, pipeli
     return (len(failures) == 0), failures
 
 
-def evaluate_model(weights_path, registry, target_classes, dataset_root):
-    """Runs `weights_path` against every target class's val set, returning
-    {class_name: AP_50}. Skips (with a warning) any pipeline class whose
-    held_out_val folder doesn't exist yet."""
+def _eval_sets(registry, target_classes, dataset_root):
+    """Yields (gt, {class_name: category_id}, {class_idx: category_id}) for
+    every val set the target classes live in: the LOCO val split for the
+    LOCO classes, and each pipeline class's own held_out_val folder. Skips
+    (with a warning) any pipeline class whose held_out_val doesn't exist."""
     loco_reg = {c["name"]: c for c in db.loco_classes(registry)}
     pipeline_reg = {c["name"]: c for c in db.pipeline_classes(registry)}
-    scores = {}
 
     loco_names = [n for n in target_classes if n in loco_reg]
     if loco_names:
@@ -227,11 +253,8 @@ def evaluate_model(weights_path, registry, target_classes, dataset_root):
         for img in gt["images"]:
             img["path"] = os.path.join(dataset_root, img["path"].lstrip("/"))
         cat_name_to_id = {c["name"]: c["id"] for c in gt["categories"]}
-        class_idx_to_cat_id = {loco_reg[n]["class_idx"]: cat_name_to_id[n]
-                                for n in loco_names if n in cat_name_to_id}
-        results, _elapsed = predict_yolo(weights_path, gt, class_idx_to_cat_id)
-        ap50 = ap50_per_category(gt, results)
-        scores.update({n: ap50.get(cat_name_to_id[n], 0.0) for n in loco_names if n in cat_name_to_id})
+        names = {n: cat_name_to_id[n] for n in loco_names if n in cat_name_to_id}
+        yield gt, names, {loco_reg[n]["class_idx"]: cat for n, cat in names.items()}
 
     for name in target_classes:
         if name not in pipeline_reg:
@@ -244,16 +267,50 @@ def evaluate_model(weights_path, registry, target_classes, dataset_root):
                   f"can't verify it isn't regressing (populate this folder to close the gap)")
             continue
         gt = yolo_dir_to_coco_gt(images_dir, labels_dir, category_id=0, category_name=name)
-        results, _elapsed = predict_yolo(weights_path, gt, {cls["class_idx"]: 0})
-        scores[name] = ap50_per_category(gt, results).get(0, 0.0)
+        yield gt, {name: 0}, {cls["class_idx"]: 0}
 
+
+def evaluate_model(weights_path, registry, target_classes, dataset_root):
+    """Runs `weights_path` against every target class's val set, returning
+    {class_name: AP_50}."""
+    scores = {}
+    for gt, names, idx_to_cat in _eval_sets(registry, target_classes, dataset_root):
+        results, _elapsed = predict_yolo(weights_path, gt, idx_to_cat)
+        ap50 = ap50_per_category(gt, results)
+        scores.update({n: ap50.get(cat, 0.0) for n, cat in names.items()})
     return scores
 
 
+def compare_with_production(candidate, production, registry, target_classes, production_known, dataset_root):
+    """Scores the candidate on every target class and, for the classes
+    production knows, production too -- on the same images -- plus the 95%
+    paired-bootstrap CI of candidate - production. Returns (candidate_scores,
+    production_scores, diff_ci)."""
+    from two_model_gate import PerImageMatches, paired_bootstrap
+
+    cand_scores, prod_scores, diff_ci = {}, {}, {}
+    for gt, names, idx_to_cat in _eval_sets(registry, target_classes, dataset_root):
+        cand_results, _ = predict_yolo(candidate, gt, idx_to_cat)
+        cand_ap = ap50_per_category(gt, cand_results)
+        cand_scores.update({n: cand_ap.get(cat, 0.0) for n, cat in names.items()})
+        known = {n: cat for n, cat in names.items() if n in production_known}
+        if not known:
+            continue
+        prod_results, _ = predict_yolo(production, gt, idx_to_cat)
+        prod_ap = ap50_per_category(gt, prod_results)
+        cand_m, prod_m = PerImageMatches(gt, cand_results), PerImageMatches(gt, prod_results)
+        for n, cat in known.items():
+            prod_scores[n] = prod_ap.get(cat, 0.0)
+            _p, _c, lo, hi = paired_bootstrap(prod_m, cand_m, cat, cat)
+            diff_ci[n] = (lo, hi)
+    return cand_scores, prod_scores, diff_ci
+
+
 def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
-            min_ap50_new_class=MIN_AP50_FOR_NEW_CLASS):
+            min_ap50_new_class=MIN_AP50_FOR_NEW_CLASS, dry_run=False):
     """Evaluates `weights` against every class the current production model
-    knows, and promotes it to production iff none of them regress. Returns
+    knows, and promotes it to production iff none of them demonstrably
+    regress (see decide_promotion). Returns
     True if promoted, False otherwise -- used directly by
     auto_train_trigger.py, and by main() below for the CLI."""
     registry = db.load_class_registry()
@@ -264,7 +321,6 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
     print(f"classes the gate must not regress: {target_classes}")
     print(f"current production: {'none yet (first promotion)' if not has_production else PRODUCTION_WEIGHTS}")
 
-    candidate_scores = evaluate_model(weights, registry, target_classes, db.DATASET_ROOT)
     # Only evaluate production on classes ITS OWN registry claims to know --
     # evaluating it on a class it never learned (e.g. iw_hub before its first
     # promotion) always scores 0.0 (the model structurally can't predict a
@@ -273,23 +329,25 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
     # decide_promotion() instead of being held to MIN_AP50_FOR_NEW_CLASS via
     # its proper first-promotion floor check.
     production_known = set(production["classes"]) if has_production else set()
-    production_scores = (
-        evaluate_model(PRODUCTION_WEIGHTS, registry, [c for c in target_classes if c in production_known],
-                       db.DATASET_ROOT)
-        if has_production else {}
-    )
+    if has_production:
+        candidate_scores, production_scores, diff_ci = compare_with_production(
+            weights, PRODUCTION_WEIGHTS, registry, target_classes, production_known, db.DATASET_ROOT)
+    else:
+        candidate_scores = evaluate_model(weights, registry, target_classes, db.DATASET_ROOT)
+        production_scores, diff_ci = {}, {}
 
-    print("\n=== per-class AP_50 ===")
+    print("\n=== per-class AP_50 (95% CI of candidate - production) ===")
     for name in target_classes:
         cand = candidate_scores.get(name)
         prod = production_scores.get(name)
+        ci = f"  CI [{diff_ci[name][0]:+.3f}, {diff_ci[name][1]:+.3f}]" if name in diff_ci else ""
         print(f"{name}: candidate={cand if cand is not None else float('nan'):.3f} "
-              f"production={prod if prod is not None else float('nan'):.3f}")
+              f"production={prod if prod is not None else float('nan'):.3f}{ci}")
 
     pipeline_class_names = {c["name"] for c in db.pipeline_classes(registry)}
     should_promote, failures = decide_promotion(
         target_classes, candidate_scores, production_scores, pipeline_class_names,
-        regression_tolerance, min_ap50_new_class,
+        diff_ci, regression_tolerance, min_ap50_new_class,
     )
 
     if not should_promote:
@@ -297,6 +355,9 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
         for f in failures:
             print(f" - {f}")
         return False
+    if dry_run:
+        print(f"\nWOULD PROMOTE (dry run, production untouched): {run_name}")
+        return True
 
     os.makedirs(PRODUCTION_DIR, exist_ok=True)
     shutil.copy2(weights, PRODUCTION_WEIGHTS)
@@ -306,6 +367,7 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
             "promoted_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "classes": target_classes,
             "ap50_by_class": candidate_scores,
+            "ap50_diff_ci95_vs_previous": {n: list(ci) for n, ci in diff_ci.items()},
         }, f, indent=2)
     print(f"\nPROMOTED: {run_name} -> {PRODUCTION_WEIGHTS}")
     return True
@@ -317,8 +379,9 @@ def main():
     parser.add_argument("--weights", required=True, help="Path to the candidate's best.pt")
     parser.add_argument("--regression-tolerance", type=float, default=REGRESSION_TOLERANCE)
     parser.add_argument("--min-ap50-new-class", type=float, default=MIN_AP50_FOR_NEW_CLASS)
+    parser.add_argument("--dry-run", action="store_true", help="evaluate and decide, but never touch production")
     args = parser.parse_args()
-    promote(args.run_name, args.weights, args.regression_tolerance, args.min_ap50_new_class)
+    promote(args.run_name, args.weights, args.regression_tolerance, args.min_ap50_new_class, args.dry_run)
 
 
 if __name__ == "__main__":
