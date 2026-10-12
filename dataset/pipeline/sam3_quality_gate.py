@@ -27,6 +27,7 @@ import db
 
 CONFIDENCE_KEEP_BAR = 0.5
 AUTO_APPROVE_THRESHOLD = 0.85
+COMMIT_EVERY = 25
 
 
 def run_sam3_on_frame(processor, image, prompt):
@@ -95,6 +96,11 @@ def main():
 
     n_pass = n_auto_approved = n_reject = 0
     for i, (row_id, class_name, local_path) in enumerate(pending):
+        # Commit as we go: on the shared GPU a run can die mid-way (OOM when
+        # another user's job grabs memory); the next cron cycle then resumes
+        # from the frames still pending instead of redoing everything.
+        if i and i % COMMIT_EVERY == 0:
+            conn.commit()
         cls = db.class_by_name(class_name, registry)
         image = Image.open(local_path).convert("RGB")
         w, h = image.size

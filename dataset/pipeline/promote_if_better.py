@@ -27,11 +27,11 @@ predict_on_loco/predict_iwhub, generalized to an arbitrary class subset.
 Needs, alongside the candidate weights:
   - dataset/loco_val_paths.txt + dataset/annotations/loco-all-v1.json (the
     fixed LOCO held-out val split every prior experiment used)
-  - for each source=pipeline class in class_registry.json, a YOLO-format
-    <held_out_val>/{images,labels}/ folder that build_training_batch.py's
-    replay sampling never touches -- a permanently held-out slice (e.g.
-    carved out of the iw_hub Roboflow export). Populated once by hand; this
-    script only reads it.
+  - for each source=pipeline class in class_registry.json, one or more
+    YOLO-format {images,labels}/ folders that training never touches:
+    "test_sets" (e.g. fixed_testset/iw_hub + fixed_testset/iw_hub_roboflow,
+    real files), falling back to "held_out_val". The old held_out_val/iw_hub
+    was symlinks into /tmp and lost on a reboot.
 
 Usage:
     python promote_if_better.py --run-name loco_finetune_pipeline_v3 \
@@ -240,8 +240,8 @@ def decide_promotion(target_classes, candidate_scores, production_scores, pipeli
 def _eval_sets(registry, target_classes, dataset_root):
     """Yields (gt, {class_name: category_id}, {class_idx: category_id}) for
     every val set the target classes live in: the LOCO val split for the
-    LOCO classes, and each pipeline class's own held_out_val folder. Skips
-    (with a warning) any pipeline class whose held_out_val doesn't exist."""
+    LOCO classes, and each pipeline class's own test folders (see
+    pipeline_class_gt). Skips (with a warning) a pipeline class with none."""
     loco_reg = {c["name"]: c for c in db.loco_classes(registry)}
     pipeline_reg = {c["name"]: c for c in db.pipeline_classes(registry)}
 
@@ -259,15 +259,33 @@ def _eval_sets(registry, target_classes, dataset_root):
     for name in target_classes:
         if name not in pipeline_reg:
             continue
-        cls = pipeline_reg[name]
-        held_out = os.path.join(db.PROJECT_ROOT, cls["held_out_val"])
-        images_dir, labels_dir = os.path.join(held_out, "images"), os.path.join(held_out, "labels")
-        if not os.path.isdir(images_dir):
-            print(f"WARNING: no held-out val set at {held_out} for class '{name}' -- "
-                  f"can't verify it isn't regressing (populate this folder to close the gap)")
+        gt = pipeline_class_gt(pipeline_reg[name])
+        if gt is not None:
+            yield gt, {name: 0}, {pipeline_reg[name]["class_idx"]: 0}
+
+
+def pipeline_class_gt(cls, category_id=0):
+    """Single-category COCO GT over all of a pipeline class's test folders
+    ("test_sets", else "held_out_val"), or None (with a warning) if none of
+    them holds a readable image."""
+    dirs = cls.get("test_sets") or [cls["held_out_val"]]
+    merged = {"images": [], "annotations": [], "categories": [{"id": category_id, "name": cls["name"]}]}
+    for rel in dirs:
+        d = os.path.join(db.PROJECT_ROOT, rel)
+        if not os.path.isdir(os.path.join(d, "images")):
+            print(f"WARNING: no test set at {d} for class '{cls['name']}'")
             continue
-        gt = yolo_dir_to_coco_gt(images_dir, labels_dir, category_id=0, category_name=name)
-        yield gt, {name: 0}, {cls["class_idx"]: 0}
+        gt = yolo_dir_to_coco_gt(os.path.join(d, "images"), os.path.join(d, "labels"), category_id, cls["name"])
+        img_offset, ann_offset = len(merged["images"]), len(merged["annotations"])
+        for img in gt["images"]:
+            merged["images"].append({**img, "id": img["id"] + img_offset})
+        for ann in gt["annotations"]:
+            merged["annotations"].append({**ann, "id": ann["id"] + ann_offset, "image_id": ann["image_id"] + img_offset})
+    if not merged["images"]:
+        print(f"WARNING: no readable test images for class '{cls['name']}' in {dirs} -- "
+              f"can't verify it isn't regressing")
+        return None
+    return merged
 
 
 def evaluate_model(weights_path, registry, target_classes, dataset_root):
@@ -306,21 +324,9 @@ def compare_with_production(candidate, production, registry, target_classes, pro
     return cand_scores, prod_scores, diff_ci
 
 
-def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
-            min_ap50_new_class=MIN_AP50_FOR_NEW_CLASS, dry_run=False):
-    """Evaluates `weights` against every class the current production model
-    knows, and promotes it to production iff none of them demonstrably
-    regress (see decide_promotion). Returns
-    True if promoted, False otherwise -- used directly by
-    auto_train_trigger.py, and by main() below for the CLI."""
-    registry = db.load_class_registry()
-    production = load_production_registry()
-    has_production = production is not None and os.path.exists(PRODUCTION_WEIGHTS)
-    target_classes = known_classes(registry, production)
-
-    print(f"classes the gate must not regress: {target_classes}")
-    print(f"current production: {'none yet (first promotion)' if not has_production else PRODUCTION_WEIGHTS}")
-
+def _gate_one(weights, registry, target_classes, production_known, has_production,
+              regression_tolerance, min_ap50_new_class):
+    """Scores one candidate and runs decide_promotion on it."""
     # Only evaluate production on classes ITS OWN registry claims to know --
     # evaluating it on a class it never learned (e.g. iw_hub before its first
     # promotion) always scores 0.0 (the model structurally can't predict a
@@ -328,7 +334,6 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
     # 0.0 baseline would trivially "pass" the regression check in
     # decide_promotion() instead of being held to MIN_AP50_FOR_NEW_CLASS via
     # its proper first-promotion floor check.
-    production_known = set(production["classes"]) if has_production else set()
     if has_production:
         candidate_scores, production_scores, diff_ci = compare_with_production(
             weights, PRODUCTION_WEIGHTS, registry, target_classes, production_known, db.DATASET_ROOT)
@@ -336,7 +341,7 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
         candidate_scores = evaluate_model(weights, registry, target_classes, db.DATASET_ROOT)
         production_scores, diff_ci = {}, {}
 
-    print("\n=== per-class AP_50 (95% CI of candidate - production) ===")
+    print(f"\n=== {weights}: per-class AP_50 (95% CI of candidate - production) ===")
     for name in target_classes:
         cand = candidate_scores.get(name)
         prod = production_scores.get(name)
@@ -345,38 +350,74 @@ def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
               f"production={prod if prod is not None else float('nan'):.3f}{ci}")
 
     pipeline_class_names = {c["name"] for c in db.pipeline_classes(registry)}
-    should_promote, failures = decide_promotion(
+    passed, failures = decide_promotion(
         target_classes, candidate_scores, production_scores, pipeline_class_names,
         diff_ci, regression_tolerance, min_ap50_new_class,
     )
-
-    if not should_promote:
-        print("\nNOT PROMOTED:")
+    if not passed:
+        print("fails the gate:")
         for f in failures:
             print(f" - {f}")
+    return {"weights": weights, "passed": passed, "failures": failures,
+            "scores": candidate_scores, "diff_ci": diff_ci}
+
+
+def promote(run_name, weights, regression_tolerance=REGRESSION_TOLERANCE,
+            min_ap50_new_class=MIN_AP50_FOR_NEW_CLASS, dry_run=False):
+    """Gates one candidate, or several (e.g. the same batch trained with
+    different seeds), against every class the current production model
+    knows, and promotes the passing candidate with the highest mean AP_50
+    over those classes. Returns True if one was promoted (or would be, with
+    dry_run) -- used directly by auto_train_trigger.py, and by main() below
+    for the CLI.
+
+    Picking the best of several seeds on the same test set the gate reads
+    biases the promoted model's scores slightly upward (a lucky seed looks
+    better than the recipe is); each candidate still has to pass the gate
+    on its own."""
+    candidates = [weights] if isinstance(weights, str) else list(weights)
+    registry = db.load_class_registry()
+    production = load_production_registry()
+    has_production = production is not None and os.path.exists(PRODUCTION_WEIGHTS)
+    target_classes = known_classes(registry, production)
+    production_known = set(production["classes"]) if has_production else set()
+
+    print(f"classes the gate must not regress: {target_classes}")
+    print(f"current production: {'none yet (first promotion)' if not has_production else PRODUCTION_WEIGHTS}")
+
+    results = [_gate_one(w, registry, target_classes, production_known, has_production,
+                         regression_tolerance, min_ap50_new_class) for w in candidates]
+    passing = [r for r in results if r["passed"]]
+    if not passing:
+        print(f"\nNOT PROMOTED: none of the {len(results)} candidate(s) passed the gate")
         return False
+    best = max(passing, key=lambda r: sum(r["scores"].get(n, 0.0) for n in target_classes) / len(target_classes))
     if dry_run:
-        print(f"\nWOULD PROMOTE (dry run, production untouched): {run_name}")
+        print(f"\nWOULD PROMOTE (dry run, production untouched): {run_name} -> {best['weights']}")
         return True
 
     os.makedirs(PRODUCTION_DIR, exist_ok=True)
-    shutil.copy2(weights, PRODUCTION_WEIGHTS)
+    shutil.copy2(best["weights"], PRODUCTION_WEIGHTS)
     with open(PRODUCTION_REGISTRY, "w") as f:
         json.dump({
             "run_name": run_name,
+            "weights": best["weights"],
             "promoted_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "classes": target_classes,
-            "ap50_by_class": candidate_scores,
-            "ap50_diff_ci95_vs_previous": {n: list(ci) for n, ci in diff_ci.items()},
+            "ap50_by_class": best["scores"],
+            "ap50_diff_ci95_vs_previous": {n: list(ci) for n, ci in best["diff_ci"].items()},
+            "candidates": [{"weights": r["weights"], "passed": r["passed"], "ap50_by_class": r["scores"]}
+                           for r in results],
         }, f, indent=2)
-    print(f"\nPROMOTED: {run_name} -> {PRODUCTION_WEIGHTS}")
+    print(f"\nPROMOTED: {run_name} ({best['weights']}) -> {PRODUCTION_WEIGHTS}")
     return True
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-name", required=True)
-    parser.add_argument("--weights", required=True, help="Path to the candidate's best.pt")
+    parser.add_argument("--weights", required=True, nargs="+",
+                        help="Candidate weights; several (e.g. one per seed) -> the best passing one is promoted")
     parser.add_argument("--regression-tolerance", type=float, default=REGRESSION_TOLERANCE)
     parser.add_argument("--min-ap50-new-class", type=float, default=MIN_AP50_FOR_NEW_CLASS)
     parser.add_argument("--dry-run", action="store_true", help="evaluate and decide, but never touch production")

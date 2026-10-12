@@ -234,10 +234,44 @@ promover. Híbrido limpo, 3 seeds:
   gate.
 - **Sistema de dois modelos**: passou no gate, ao custo de ~19 ms a mais por
   frame no robô.
-- **Em teste**: limiares adaptativos por classe nos pseudo-rótulos
-  (`apple_threshold_relabel.py`), na linha de Song et al., "Overcoming
-  Catastrophic Forgetting for Multi-Label Class-Incremental Learning"
-  (APPLE, WACV 2024): o limiar de cada classe é escolhido para que os
-  pseudo-rótulos tenham tantos objetos por imagem quanto o LOCO anotado. Com
-  o limiar fixo de 0.5, `pallet_truck` ficava com 0.32 objetos por imagem
-  (alvo 0.59) e `stillage` com 0.82 (alvo 1.21).
+- **Limiares adaptativos por classe** (`apple_threshold_relabel.py`), na
+  linha de Song et al., "Overcoming Catastrophic Forgetting for Multi-Label
+  Class-Incremental Learning" (APPLE, WACV 2024): o limiar de cada classe é
+  escolhido para que os pseudo-rótulos tenham tantos objetos por imagem
+  quanto o LOCO anotado (com 0.5 fixo, `pallet_truck` tinha 0.32 objetos por
+  imagem contra 0.59 no LOCO, e `stillage` 0.82 contra 1.21). Resultado (3
+  seeds): `pallet_truck` 0.242 -> 0.252 e `pallet` 0.633 -> 0.642, mas
+  `stillage` 0.465 -> 0.446 e `forklift` 0.253 -> 0.214 -- os rótulos extras
+  de baixa confiança são ruidosos. Média LOCO 0.386 (pior que o híbrido) e
+  `stillage` reprova nas 3 seeds. **Descartado.**
+
+## Decisão final (2026-10-07)
+
+**Modelo único**, com a receita do híbrido limpo e **pseudo-rótulos sempre
+com confiança 0.5** (sem limiar adaptativo, sem especialista). A receita
+está implementada no pipeline (`build_training_batch.py`, `pseudo_labels.py`,
+ver `README.md`). Uma rodada completa do pipeline (3 seeds) reproduziu o
+resultado: média LOCO 0.385, `stillage` e `pallet_truck` ainda reprovam no
+gate, então nada é promovido até essas duas classes melhorarem.
+
+## Experimento à parte: Incremental Zero-Shot Learning no CUB
+
+`dataset/izsl_cub/cub_izsl.py`: a receita no benchmark CUB de Wei et al.,
+"Incremental Zero-Shot Learning" (IEEE T-Cybernetics 2022), Tabela II
+(split padrão de ZSL, 5 etapas de 30 classes, SAM3 para as 50 classes não
+vistas, portão de confiança 0.5 do YOLO):
+
+| método | guarda imagens antigas? | u | s | H |
+|---|---|---|---|---|
+| Wei et al. | não | 38.1 | 45.6 | 41.5 |
+| nosso, sem replay | não | 33.4 | 13.7 | 19.5 |
+| nosso, 5 imagens por classe | 5/classe | 44.7 | 26.0 | 32.9 |
+| nosso, replay do pipeline (todas) | todas | 44.1 | 46.3 | 45.2 |
+| treino conjunto (teto do paper) | todas | 43.7 | 57.7 | 49.7 |
+
+Sem replay o método colapsa (cada rodada recomeça do modelo base, então as
+classes antigas só sobrevivem pelo replay); o forte é o SAM3 (73.8% sozinho
+nas classes não vistas, contra 51.2% do paper -- com a ressalva de que o
+pré-treino do SAM3 pode incluir essas espécies). O método serve para o
+cenário em que o dataset antigo continua disponível, não para o IZSL sem
+armazenamento.

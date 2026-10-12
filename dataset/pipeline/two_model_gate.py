@@ -51,7 +51,7 @@ sys.path.insert(0, db.DATASET_ROOT)
 import eval_loco  # noqa: E402
 from promote_if_better import (  # noqa: E402
     AP_CONFIDENCE_THRESHOLD, LOCO_ANNOTATIONS, LOCO_VAL_PATHS, MIN_AP50_FOR_NEW_CLASS,
-    PRODUCTION_DIR, PRODUCTION_REGISTRY, PRODUCTION_WEIGHTS, yolo_dir_to_coco_gt,
+    PRODUCTION_DIR, PRODUCTION_REGISTRY, PRODUCTION_WEIGHTS, pipeline_class_gt,
 )
 
 PRODUCTION_SPECIALIST = os.path.join(PRODUCTION_DIR, "specialist.pt")
@@ -286,12 +286,13 @@ def run_gate(specialist, promote=False):
     # --- pipeline classes on their own held-out sets
     current_spec = production.get("specialist")
     has_current = current_spec is not None and os.path.exists(PRODUCTION_SPECIALIST)
-    print("\n=== pipeline classes (held_out_val) ===")
+    print("\n=== pipeline classes (test sets) ===")
     report["pipeline"] = {}
     for c in pipeline_reg:
-        held_out = os.path.join(db.PROJECT_ROOT, c["held_out_val"])
-        hgt = yolo_dir_to_coco_gt(os.path.join(held_out, "images"), os.path.join(held_out, "labels"),
-                                  category_id=0, category_name=c["name"])
+        hgt = pipeline_class_gt(c)
+        if hgt is None:
+            failures.append(f"{c['name']}: no readable test images")
+            continue
         hpaths = [img["path"] for img in hgt["images"]]
         cand = PerImageMatches(hgt, to_coco_results(predict_raw(specialist, hpaths), hgt, {c["class_idx"]: 0}))
         if has_current and c["name"] in current_spec.get("classes", []):

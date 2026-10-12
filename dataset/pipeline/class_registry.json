@@ -1,17 +1,18 @@
 {
   "classes": [
-    {"name": "small_load_carrier", "class_idx": 0, "source": "loco", "prompt": null},
-    {"name": "forklift", "class_idx": 1, "source": "loco", "prompt": null},
-    {"name": "pallet", "class_idx": 2, "source": "loco", "prompt": null},
-    {"name": "stillage", "class_idx": 3, "source": "loco", "prompt": null},
-    {"name": "pallet_truck", "class_idx": 4, "source": "loco", "prompt": null},
+    {"name": "small_load_carrier", "pseudo_label_source": "sam3", "class_idx": 0, "source": "loco", "prompt": null},
+    {"name": "forklift", "pseudo_label_source": "production", "class_idx": 1, "source": "loco", "prompt": null},
+    {"name": "pallet", "pseudo_label_source": "production", "class_idx": 2, "source": "loco", "prompt": null},
+    {"name": "stillage", "pseudo_label_source": "sam3", "class_idx": 3, "source": "loco", "prompt": null},
+    {"name": "pallet_truck", "pseudo_label_source": "sam3", "class_idx": 4, "source": "loco", "prompt": null},
     {
       "name": "iw_hub",
       "class_idx": 5,
       "source": "pipeline",
       "prompt": "yellow robot platform",
       "replay_dir": "dataset/pipeline/approved_pending_training/iw_hub",
-      "held_out_val": "dataset/pipeline/held_out_val/iw_hub"
+      "held_out_val": "dataset/pipeline/held_out_val/iw_hub",
+      "test_sets": ["dataset/pipeline/fixed_testset/iw_hub", "dataset/pipeline/fixed_testset/iw_hub_roboflow"]
     }
   ]
 }

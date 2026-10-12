@@ -125,6 +125,21 @@ def approved_pool(conn, class_name):
     ).fetchall()
 
 
+def environment_frames(conn, registry=None):
+    """Captured images SAM3 rejected for EVERY pipeline class -- frames of
+    the robot's own surroundings with (per SAM3) none of the pipeline
+    classes in them. build_training_batch.py uses them as in-domain images,
+    with the LOCO classes pseudo-labeled by the production model. Ordered
+    for the same reproducibility reason as approved_pool()."""
+    n_classes = len(pipeline_classes(registry))
+    rows = conn.execute(
+        "SELECT local_path FROM frames GROUP BY local_path "
+        "HAVING COUNT(*) = ? AND SUM(sam3_status != 'reject') = 0 ORDER BY local_path",
+        (n_classes,),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
 def get_next_pending_review(conn):
     """Oldest not-yet-reviewed row that passed the SAM3 gate, across every
     class -- review_bridge.py shows reviewers one queue, not one per class."""

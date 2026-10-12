@@ -59,3 +59,12 @@ docs/
 # output) -- regenerated fresh every fine-tune round, not committed, same
 # philosophy as runs/ above
 dataset/pipeline/training_batches/
+# pipeline data and experiment outputs -- regenerable, not committed
+dataset/coco/
+dataset/loco_unannotated_full/
+dataset/pipeline/logs/
+dataset/pipeline/saturation/
+dataset/pipeline/self_training/
+dataset/pipeline/specialist_batches/
+dataset/izsl_cub/*
+!dataset/izsl_cub/cub_izsl.py

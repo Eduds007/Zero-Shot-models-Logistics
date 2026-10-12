@@ -23,11 +23,10 @@ import argparse
 import json
 import os
 import random
-import re
 import shutil
 
 import db
-from build_training_batch import LOCO_SRC
+from build_training_batch import LOCO_SRC, _ts_key, assert_no_test_leak
 from promote_if_better import LOCO_VAL_PATHS, evaluate_model
 from run_finetune import finetune
 from self_training import OUT_ROOT, eval_iw_hub
@@ -35,11 +34,6 @@ from self_training import OUT_ROOT, eval_iw_hub
 BASE = os.path.join(OUT_ROOT, "batches", "self_training_robot_prodteacher_r3")
 SEEDS = [0, 1, 2]
 BATCH_SIZE = 8
-LOCO_TEST_SUBSETS = {"1", "4"}  # the official LOCO val warehouses
-
-
-def _ts_key(name):
-    return os.path.splitext(os.path.basename(name))[0].split("_")[-1]
 
 
 def replace_loco_val(out):
@@ -62,20 +56,6 @@ def replace_loco_val(out):
         stem = os.path.splitext(f)[0]
         os.symlink(os.path.join(LOCO_SRC, "labels", "train", stem + ".txt"), os.path.join(lbl_val, stem + ".txt"))
     print(f"val split: replaced {len(removed)} LOCO-val images with held-out LOCO train-split images", flush=True)
-
-
-def assert_no_test_leak(out):
-    with open(LOCO_VAL_PATHS) as f:
-        test_keys = {_ts_key(l.strip()) for l in f if l.strip()}
-    fx = os.path.join(db.PIPELINE_ROOT, "fixed_testset")
-    iw_test = {f for d in ("iw_hub", "iw_hub_roboflow") for f in os.listdir(os.path.join(fx, d, "images"))}
-    for split in ("train", "val"):
-        d = os.path.join(out, "images", split)
-        for f in os.listdir(d):
-            m = re.search(r"subset-(\d)", os.path.realpath(os.path.join(d, f))) or re.search(r"subset-(\d)", f)
-            if _ts_key(f) in test_keys or f in iw_test or (m and m.group(1) in LOCO_TEST_SUBSETS):
-                raise RuntimeError(f"test image leaked into {split}: {f}")
-    print("leak check passed: no LOCO-val warehouse / iw_hub test image in train or val", flush=True)
 
 
 def build(n, variant=""):
