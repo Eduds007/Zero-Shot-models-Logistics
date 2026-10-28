@@ -1,0 +1,47 @@
+[
+  {
+    "seed": 0,
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/robot_plus_sam3loco_5000_s0/weights/best.pt",
+    "loco": {
+      "small_load_carrier": 0.500176610583863,
+      "forklift": 0.08815011741677922,
+      "pallet": 0.4389401972234379,
+      "stillage": 0.5580673429424353,
+      "pallet_truck": 0.4117791667152783
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9977642925582881,
+      "roboflow_50": 0.28505308488519104
+    }
+  },
+  {
+    "seed": 1,
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/robot_plus_sam3loco_5000_s1/weights/best.pt",
+    "loco": {
+      "small_load_carrier": 0.5009167292927417,
+      "forklift": 0.07040496946151403,
+      "pallet": 0.4229014401282971,
+      "stillage": 0.5651605593874788,
+      "pallet_truck": 0.39571281252811985
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9828598931321705,
+      "roboflow_50": 0.37625327867332503
+    }
+  },
+  {
+    "seed": 2,
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/robot_plus_sam3loco_5000_s2/weights/best.pt",
+    "loco": {
+      "small_load_carrier": 0.5069926573181845,
+      "forklift": 0.07026674239228234,
+      "pallet": 0.42923640692640436,
+      "stillage": 0.5725880238138648,
+      "pallet_truck": 0.42699828379873667
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9785773600401517,
+      "roboflow_50": 0.343199770955593
+    }
+  }
+]

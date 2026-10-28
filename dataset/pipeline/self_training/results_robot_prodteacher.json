@@ -1,0 +1,112 @@
+[
+  {
+    "round": 1,
+    "seed": 0,
+    "teacher": "../../runs/detect/yolo_runs/pipeline_r0_pseudo/weights/best.pt",
+    "loco_teacher": "../../runs/detect/production/best.pt",
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r1/weights/best.pt",
+    "pseudo_labels": {
+      "forklift": 129,
+      "pallet": 557,
+      "small_load_carrier": 16,
+      "pallet_truck": 55,
+      "stillage": 66,
+      "iw_hub": 20
+    },
+    "loco": {
+      "small_load_carrier": 0.37583029632105225,
+      "forklift": 0.25915389004550005,
+      "pallet": 0.6345128841985488,
+      "stillage": 0.4618498140161347,
+      "pallet_truck": 0.20663555958968494
+    },
+    "iw_hub": {
+      "lab_video_30": 1.0,
+      "roboflow_50": 0.3619634184964088
+    }
+  },
+  {
+    "round": 2,
+    "seed": 0,
+    "teacher": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r1/weights/best.pt",
+    "loco_teacher": "../../runs/detect/production/best.pt",
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r2/weights/best.pt",
+    "pseudo_labels": {
+      "forklift": 129,
+      "pallet": 557,
+      "small_load_carrier": 16,
+      "pallet_truck": 55,
+      "stillage": 66,
+      "iw_hub": 24
+    },
+    "loco": {
+      "small_load_carrier": 0.3759467307103608,
+      "forklift": 0.24526132975287893,
+      "pallet": 0.6340449934973797,
+      "stillage": 0.4655357884942273,
+      "pallet_truck": 0.20443160017441295
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9977642925582881,
+      "roboflow_50": 0.33205130207402134
+    }
+  },
+  {
+    "round": 3,
+    "seed": 0,
+    "teacher": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r2/weights/best.pt",
+    "loco_teacher": "../../runs/detect/production/best.pt",
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r3/weights/best.pt",
+    "pseudo_labels": {
+      "forklift": 129,
+      "pallet": 557,
+      "small_load_carrier": 16,
+      "pallet_truck": 55,
+      "stillage": 66,
+      "iw_hub": 28
+    },
+    "loco": {
+      "small_load_carrier": 0.3703730168812294,
+      "forklift": 0.25506092203855,
+      "pallet": 0.6348013180481915,
+      "stillage": 0.4649349932956997,
+      "pallet_truck": 0.21055019764019178
+    },
+    "iw_hub": {
+      "lab_video_30": 1.0,
+      "roboflow_50": 0.31739206504954215
+    }
+  },
+  {
+    "round": 3,
+    "seed": 1,
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r3_s1/weights/best.pt",
+    "loco": {
+      "small_load_carrier": 0.3636154507918477,
+      "forklift": 0.24684570658594557,
+      "pallet": 0.6335839331664986,
+      "stillage": 0.4641310214528947,
+      "pallet_truck": 0.2163357599253771
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9923347173427022,
+      "roboflow_50": 0.2643663501479896
+    }
+  },
+  {
+    "round": 3,
+    "seed": 2,
+    "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/self_training_robot_prodteacher_r3_s2/weights/best.pt",
+    "loco": {
+      "small_load_carrier": 0.3718562848342613,
+      "forklift": 0.2661296339870844,
+      "pallet": 0.6345543058432751,
+      "stillage": 0.47460132203845473,
+      "pallet_truck": 0.21982059307056587
+    },
+    "iw_hub": {
+      "lab_video_30": 0.9932784226698532,
+      "roboflow_50": 0.3475282963870798
+    }
+  }
+]

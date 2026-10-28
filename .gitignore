@@ -64,7 +64,31 @@ dataset/coco/
 dataset/loco_unannotated_full/
 dataset/pipeline/logs/
 dataset/pipeline/saturation/
-dataset/pipeline/self_training/
+dataset/pipeline/self_training/*
+!dataset/pipeline/self_training/results_*.json
 dataset/pipeline/specialist_batches/
 dataset/izsl_cub/*
 !dataset/izsl_cub/cub_izsl.py
+
+# GT vs SAM3 side-by-side review viewer output (LOCO image copies + predictions)
+# -- regenerable via build_sam3_gt_review.py, not committed
+dataset/sam3_gt_review/
+
+# October 2026 experiments: datasets, caches and batches -- regenerable by
+# their scripts, not committed (results go in self_training/results_*.json
+# and CATASTROPHIC_FORGETTING_RESULTS.md)
+dataset/iwhub_roboflow/
+dataset/loco_sam3_vs_human/
+dataset/loco_synthetic_mix/
+dataset/synthetic_isaac/
+dataset/claude_annot/
+dataset/pipeline/baseline_batches/
+dataset/pipeline/kuka_arm_scan/
+dataset/pipeline/kuka_arm_sam3/
+dataset/pipeline/kuka_arm_test_review/
+dataset/pipeline/kuka_arm_test_review.zip
+dataset/pipeline/sam3_prompt_ensemble_cache/
+dataset/pipeline/yolov8m.pt
+# fixed test sets: images stay local; the hand-corrected KUKA labels are kept
+dataset/pipeline/fixed_testset/*/images/
+!dataset/pipeline/fixed_testset/robotic_arm/labels/*.txt

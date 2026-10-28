@@ -1,0 +1,132 @@
+{
+  "conf": 0.5,
+  "match_iou": 0.5,
+  "iw_hub_prompt": "yellow robot platform",
+  "iw_hub_roboflow": {
+    "precision": 0.9867021276595744,
+    "recall": 0.7288801571709234,
+    "mean_iou_matched": 0.8806099793578251,
+    "tp": 371,
+    "fp": 5,
+    "n_gt": 509,
+    "ap50": 0.9618047587014426,
+    "n_images": 509,
+    "gate": {
+      "reject": 137,
+      "review": 128,
+      "auto_approve": 244
+    }
+  },
+  "iw_hub_false_alarms_on_loco": {
+    "n_images": 500,
+    "images_with_false_box": 0,
+    "false_boxes": 0,
+    "gate": {
+      "reject": 500,
+      "review": 0,
+      "auto_approve": 0
+    }
+  },
+  "loco_classes": {
+    "small_load_carrier": {
+      "sam3": {
+        "precision": 0.5907429963459196,
+        "recall": 0.6531253506901582,
+        "mean_iou_matched": 0.7153048056981788,
+        "tp": 5820,
+        "fp": 4032,
+        "n_gt": 8911,
+        "ap50": 0.5891764141312009
+      },
+      "production": {
+        "precision": 0.7917647058823529,
+        "recall": 0.22657389743014253,
+        "mean_iou_matched": 0.7317721128464383,
+        "tp": 2019,
+        "fp": 531,
+        "n_gt": 8911,
+        "ap50": 0.35305698664065577
+      }
+    },
+    "forklift": {
+      "sam3": {
+        "precision": 0.08944954128440367,
+        "recall": 0.31451612903225806,
+        "mean_iou_matched": 0.7600995895684503,
+        "tp": 39,
+        "fp": 397,
+        "n_gt": 124,
+        "ap50": 0.04920501523407582
+      },
+      "production": {
+        "precision": 0.2708333333333333,
+        "recall": 0.31451612903225806,
+        "mean_iou_matched": 0.7801626627127978,
+        "tp": 39,
+        "fp": 105,
+        "n_gt": 124,
+        "ap50": 0.26032103428307596
+      }
+    },
+    "pallet": {
+      "sam3": {
+        "precision": 0.5425545654139222,
+        "recall": 0.3213186224831252,
+        "mean_iou_matched": 0.6992136010302407,
+        "tp": 16804,
+        "fp": 14168,
+        "n_gt": 52297,
+        "ap50": 0.3112488570570903
+      },
+      "production": {
+        "precision": 0.8364487555151393,
+        "recall": 0.4748838365489416,
+        "mean_iou_matched": 0.7282742162726307,
+        "tp": 24835,
+        "fp": 4856,
+        "n_gt": 52297,
+        "ap50": 0.5990242689443107
+      }
+    },
+    "stillage": {
+      "sam3": {
+        "precision": 0.5962765957446808,
+        "recall": 0.5585450921773791,
+        "mean_iou_matched": 0.780741990316866,
+        "tp": 1121,
+        "fp": 759,
+        "n_gt": 2007,
+        "ap50": 0.5683130861765786
+      },
+      "production": {
+        "precision": 0.8177399756986634,
+        "recall": 0.3353263577478824,
+        "mean_iou_matched": 0.801280765092186,
+        "tp": 673,
+        "fp": 150,
+        "n_gt": 2007,
+        "ap50": 0.46725794752332206
+      }
+    },
+    "pallet_truck": {
+      "sam3": {
+        "precision": 0.7552083333333334,
+        "recall": 0.37727666955767564,
+        "mean_iou_matched": 0.7818121910718829,
+        "tp": 435,
+        "fp": 141,
+        "n_gt": 1153,
+        "ap50": 0.4689798105299247
+      },
+      "production": {
+        "precision": 0.7913669064748201,
+        "recall": 0.09540329575021683,
+        "mean_iou_matched": 0.6850175600909245,
+        "tp": 110,
+        "fp": 29,
+        "n_gt": 1153,
+        "ap50": 0.23837012027700327
+      }
+    }
+  }
+}

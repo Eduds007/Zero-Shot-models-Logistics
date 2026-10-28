@@ -1,0 +1,171 @@
+{
+  "runs": [
+    {
+      "seed": 0,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/kuka_arm_g_s0/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.4014186766628306,
+        "forklift": 0.24023303018318926,
+        "pallet": 0.6355830078961692,
+        "stillage": 0.4579447819074107,
+        "pallet_truck": 0.24153776820007486,
+        "iw_hub": 0.5960578226564384,
+        "robotic_arm": 0.28297743409021964
+      },
+      "reference": {
+        "small_load_carrier": 0.38444793745280864,
+        "forklift": 0.22921116661467916,
+        "pallet": 0.6361878422261286,
+        "stillage": 0.46297419526627936,
+        "pallet_truck": 0.27245275624519877,
+        "iw_hub": 0.5306510563851344
+      },
+      "diff_ci": {
+        "small_load_carrier": [
+          0.011128656992090678,
+          0.023467359920127506
+        ],
+        "forklift": [
+          -0.0193086547310126,
+          0.049182856720932
+        ],
+        "pallet": [
+          -0.0036351847986764688,
+          0.0006394350407086242
+        ],
+        "stillage": [
+          -0.016252207879099968,
+          0.005480475768054847
+        ],
+        "pallet_truck": [
+          -0.047439664977242536,
+          -0.01580821859261635
+        ],
+        "iw_hub": [
+          0.035096464379978286,
+          0.098624672234689
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "pallet_truck: candidate AP_50=0.242 vs production 0.272, 95% CI of the difference [-0.047, -0.016] entirely below -0.01 (demonstrably regresses this class)"
+      ]
+    },
+    {
+      "seed": 1,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/kuka_arm_g_s1/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.39871693571398525,
+        "forklift": 0.22979283004633738,
+        "pallet": 0.63343776761533,
+        "stillage": 0.46200487517471084,
+        "pallet_truck": 0.23115357486053312,
+        "iw_hub": 0.5834776488429587,
+        "robotic_arm": 0.3384989241136069
+      },
+      "reference": {
+        "small_load_carrier": 0.38444793745280864,
+        "forklift": 0.22921116661467916,
+        "pallet": 0.6361878422261286,
+        "stillage": 0.46297419526627936,
+        "pallet_truck": 0.27245275624519877,
+        "iw_hub": 0.5306510563851344
+      },
+      "diff_ci": {
+        "small_load_carrier": [
+          0.009258667621992041,
+          0.019281746912130013
+        ],
+        "forklift": [
+          -0.02188968846459589,
+          0.03354038882114029
+        ],
+        "pallet": [
+          -0.005840491452464341,
+          -0.0014979746746730058
+        ],
+        "stillage": [
+          -0.011557128778373425,
+          0.008712939044118921
+        ],
+        "pallet_truck": [
+          -0.05598310043468127,
+          -0.02774219172406819
+        ],
+        "iw_hub": [
+          0.024384334973605034,
+          0.08317782764085221
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "pallet_truck: candidate AP_50=0.231 vs production 0.272, 95% CI of the difference [-0.056, -0.028] entirely below -0.01 (demonstrably regresses this class)"
+      ]
+    },
+    {
+      "seed": 2,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/kuka_arm_g_s2/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.3982199028087179,
+        "forklift": 0.2083208574655699,
+        "pallet": 0.6351540500067026,
+        "stillage": 0.46631013623903683,
+        "pallet_truck": 0.23769015543092836,
+        "iw_hub": 0.5735651326657016,
+        "robotic_arm": 0.2930687370387438
+      },
+      "reference": {
+        "small_load_carrier": 0.38444793745280864,
+        "forklift": 0.22921116661467916,
+        "pallet": 0.6361878422261286,
+        "stillage": 0.46297419526627936,
+        "pallet_truck": 0.27245275624519877,
+        "iw_hub": 0.5306510563851344
+      },
+      "diff_ci": {
+        "small_load_carrier": [
+          0.007954054012723592,
+          0.019640539200410468
+        ],
+        "forklift": [
+          -0.04802683066217264,
+          0.011764846325661658
+        ],
+        "pallet": [
+          -0.0041218189158042816,
+          0.00029337708596863227
+        ],
+        "stillage": [
+          -0.007721236918971977,
+          0.01303520021164597
+        ],
+        "pallet_truck": [
+          -0.050434894023538214,
+          -0.020824187335052983
+        ],
+        "iw_hub": [
+          0.02038590151486484,
+          0.06846985996723136
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "pallet_truck: candidate AP_50=0.238 vs production 0.272, 95% CI of the difference [-0.050, -0.021] entirely below -0.01 (demonstrably regresses this class)"
+      ]
+    }
+  ],
+  "batch": {
+    "iw_hub_frames": {
+      "train": 66,
+      "val": 17
+    },
+    "loco_replay": 660,
+    "copy_paste": 198,
+    "environment": 782,
+    "loco_train_pseudo": 1252,
+    "dropped_test_day_frames": 375,
+    "robot_frames": 490,
+    "frames_with_arm": 120,
+    "arm_boxes": 199
+  }
+}

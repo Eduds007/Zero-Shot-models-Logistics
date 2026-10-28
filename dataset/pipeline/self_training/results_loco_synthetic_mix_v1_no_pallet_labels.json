@@ -1,0 +1,133 @@
+{
+  "runs": [
+    {
+      "seed": 0,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/loco_human_synth_s0/weights/best.pt",
+      "human": {
+        "small_load_carrier": 0.3315123886509989,
+        "forklift": 0.10276093289427189,
+        "pallet": 0.5987915961716933,
+        "stillage": 0.41762222018023903,
+        "pallet_truck": 0.13681483246563092
+      },
+      "human_synth": {
+        "small_load_carrier": 0.29285834999165383,
+        "forklift": 0.18361216761454446,
+        "pallet": 0.604273496104961,
+        "stillage": 0.44442130200883756,
+        "pallet_truck": 0.1552259487312537
+      },
+      "ci_synth_minus_human": {
+        "small_load_carrier": [
+          -0.054140885747460545,
+          -0.023030581978925352
+        ],
+        "forklift": [
+          0.03991885091263049,
+          0.13016626115756832
+        ],
+        "pallet": [
+          0.002073223426935475,
+          0.011232644741261257
+        ],
+        "stillage": [
+          0.0069894161899208196,
+          0.04635758597167762
+        ],
+        "pallet_truck": [
+          -0.0002793747828057048,
+          0.041161084743932874
+        ]
+      }
+    },
+    {
+      "seed": 1,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/loco_human_synth_s1/weights/best.pt",
+      "human": {
+        "small_load_carrier": 0.33589775350225665,
+        "forklift": 0.12847864108421425,
+        "pallet": 0.6189549013242027,
+        "stillage": 0.43356741879414384,
+        "pallet_truck": 0.1924128050313734
+      },
+      "human_synth": {
+        "small_load_carrier": 0.342108148764773,
+        "forklift": 0.2419316899117842,
+        "pallet": 0.623952053094058,
+        "stillage": 0.49099541169998057,
+        "pallet_truck": 0.2525672774439522
+      },
+      "ci_synth_minus_human": {
+        "small_load_carrier": [
+          -0.0174050927079371,
+          0.02839565144716908
+        ],
+        "forklift": [
+          0.05348549177469479,
+          0.17363942577183414
+        ],
+        "pallet": [
+          0.00046693016055130164,
+          0.009664996427675848
+        ],
+        "stillage": [
+          0.03445799042203803,
+          0.07934639512270648
+        ],
+        "pallet_truck": [
+          0.034583867103245555,
+          0.08512614794409543
+        ]
+      }
+    },
+    {
+      "seed": 2,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/loco_human_synth_s2/weights/best.pt",
+      "human": {
+        "small_load_carrier": 0.37933606697987815,
+        "forklift": 0.14336256282380272,
+        "pallet": 0.6310505013523237,
+        "stillage": 0.4120248336664309,
+        "pallet_truck": 0.18929363121690837
+      },
+      "human_synth": {
+        "small_load_carrier": 0.33442337028372215,
+        "forklift": 0.24780370501574647,
+        "pallet": 0.6230559360004221,
+        "stillage": 0.3871348773924587,
+        "pallet_truck": 0.21136420938927564
+      },
+      "ci_synth_minus_human": {
+        "small_load_carrier": [
+          -0.0585873382911984,
+          -0.030339842785090134
+        ],
+        "forklift": [
+          0.04863401046075504,
+          0.15522399625736985
+        ],
+        "pallet": [
+          -0.011600516088851815,
+          -0.002982721450611498
+        ],
+        "stillage": [
+          -0.04671646355632886,
+          -0.0039711444905696745
+        ],
+        "pallet_truck": [
+          2.5374414737528976e-05,
+          0.048143468046041527
+        ]
+      }
+    }
+  ],
+  "synthetic": 202,
+  "synthetic_boxes": {
+    "small_load_carrier": 97,
+    "forklift": 123,
+    "pallet": 0,
+    "stillage": 94,
+    "pallet_truck": 104
+  },
+  "n_train": 2740
+}

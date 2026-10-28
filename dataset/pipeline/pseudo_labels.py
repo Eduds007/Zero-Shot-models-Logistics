@@ -71,18 +71,18 @@ def add_without_overlap(existing, teacher):
 
 
 def ensure_loco_bank():
-    """Labels the LOCO bank with SAM3 once (~25 min); later rounds reuse it."""
+    """Labels the LOCO bank with SAM3 once (~25 min); later rounds reuse it.
+    Runs in a subprocess: SAM3 enters a global bfloat16 autocast it never
+    exits, and YOLO training in the same process then diverges."""
     labels = os.path.join(LOCO_BANK_DIR, "labels")
     if os.path.isdir(labels) and len(os.listdir(labels)) >= LOCO_BANK_N - len(LOCO_BANK_SUBSETS):
         return
-    import json
+    import subprocess
+    import sys
 
-    import sam3_label_loco_unannotated as s3
-
-    s3.download_and_extract()
-    with open(os.path.join(db.DATASET_ROOT, "annotations", "loco-all-v1.json")) as f:
-        annotated = {img["file_name"] for img in json.load(f)["images"]}
-    s3.label(s3.sample(LOCO_BANK_N, annotated, LOCO_BANK_SUBSETS), LOCO_BANK_DIR, db.load_class_registry())
+    subprocess.run([sys.executable, os.path.join(db.PIPELINE_ROOT, "sam3_label_loco_unannotated.py"),
+                    "--n", str(LOCO_BANK_N), "--subsets", *map(str, LOCO_BANK_SUBSETS)],
+                   cwd=db.PIPELINE_ROOT, check=True)
 
 
 def loco_bank(registry):

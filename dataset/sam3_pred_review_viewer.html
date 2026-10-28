@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAM3 sem GT</title>
+<style>
+  :root {
+    --bg: #111317; --panel: #1a1d23; --panel2: #22262e; --line: #2f343d;
+    --text: #e6e8eb; --muted: #9aa1ac; --accent: #4f8cff;
+    --ok: #3ecf8e; --bad: #ff5c5c; --warn: #ffb020;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+           border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  button, .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+                 border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit; }
+  button:hover, .btn:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .layout { display: grid; grid-template-columns: 200px 1fr 420px; height: calc(100vh - 52px); }
+  aside { border-right: 1px solid var(--line); overflow-y: auto; background: var(--panel); }
+  aside .row { display: flex; justify-content: space-between; padding: 6px 12px; cursor: pointer;
+               border-bottom: 1px solid var(--line); }
+  aside .row:hover { background: var(--panel2); }
+  aside .row.cur { background: #24324d; }
+  .done { color: var(--ok); }
+  main { overflow-y: auto; padding: 12px 16px; }
+  section.side { border-left: 1px solid var(--line); overflow-y: auto; padding: 12px; background: var(--panel); }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .stage { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+  .stage img { display: block; width: 100%; height: auto; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage rect { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; cursor: pointer; }
+  .stage rect.tagged-bad { stroke-dasharray: 7 4; }
+  .stage rect.sel { stroke-width: 5; filter: drop-shadow(0 0 4px #fff); }
+  .stage.dim rect:not(.sel) { opacity: .25; }
+  .stage text { font-size: 13px; paint-order: stroke; stroke: #000; stroke-width: 3px; pointer-events: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  tr.item { cursor: pointer; }
+  tr.item:hover { background: var(--panel2); }
+  tr.item.sel { background: #24324d; }
+  .tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+  .tags button { padding: 1px 6px; font-size: 11px; }
+  .tags button kbd { opacity: .6; margin-right: 2px; font-family: inherit; }
+  .muted { color: var(--muted); }
+  .missed { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; margin: 8px 0 14px; }
+  .missed input { width: 56px; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+                  border-radius: 4px; padding: 3px 5px; font: inherit; }
+  h3 { font-size: 13px; margin: 6px 0; }
+  .help { color: var(--muted); font-size: 12px; margin-top: 12px; }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 11px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; height: auto; }
+    aside { max-height: 160px; } section.side { border-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>SAM3 em imagens sem GT · LOCO</h1>
+  <div class="stats" id="stats"></div>
+  <div class="spacer"></div>
+  <button id="export">Exportar CSV</button>
+  <label class="btn">Importar CSV<input id="import" type="file" accept=".csv" hidden></label>
+</header>
+<div class="layout">
+  <aside id="list"></aside>
+  <main>
+    <div class="toolbar">
+      <button id="prev">← Anterior</button>
+      <button id="next">Próxima →</button>
+      <span id="imgname" class="muted"></span>
+      <div class="spacer"></div>
+      <button id="toggleLabels" class="on">Rótulos</button>
+      <span id="catchips" class="toolbar" style="margin:0"></span>
+    </div>
+    <div class="stage" id="stage"><img id="img"><svg id="svg"></svg></div>
+    <div class="help">
+      <kbd>←</kbd>/<kbd>→</kbd> imagem · <kbd>↑</kbd>/<kbd>↓</kbd> caixa · <kbd>1</kbd>–<kbd>6</kbd> avaliar caixa selecionada
+      (pula para a próxima) · <kbd>0</kbd> limpar · <kbd>c</kbd> marcar as restantes como corretas · <kbd>l</kbd> rótulos.
+      Tracejado = caixa que você marcou como errada. Tudo é salvo no navegador; use <b>Exportar CSV</b> ao terminar.
+    </div>
+  </main>
+  <section class="side">
+    <h3>Objetos que o SAM3 deixou passar nesta imagem</h3>
+    <div class="missed" id="missed"></div>
+    <button id="markDone">Imagem revisada ✓</button>
+    <h3 style="margin-top:14px">Caixas do SAM3 <span class="muted" id="detcount"></span></h3>
+    <table><tbody id="items"></tbody></table>
+  </section>
+</div>
+<script src="data.js"></script>
+<script>
+const D = window.REVIEW_DATA;
+const CAT_COLORS = ["#ffd23f", "#ff6ad5", "#3ecf8e", "#4fc3ff", "#ff8a3d"];
+const cats = {}; D.categories.forEach((c, i) => cats[c.id] = { ...c, color: CAT_COLORS[i % CAT_COLORS.length] });
+const TAGS = [["correct", "Correta"], ["bad_box", "Caixa imprecisa"], ["wrong_class", "Classe errada"],
+              ["false_alarm", "Falso positivo"], ["duplicate", "Duplicata"], ["unsure", "Incerto"]];
+const TAG_LABEL = Object.fromEntries(TAGS);
+
+const STORE_KEY = `sam3_unannotated_review_${D.config}_seed${D.seed}`;
+let S = { tags: {}, missed: {}, done: {} };
+try { S = { ...S, ...JSON.parse(localStorage.getItem(STORE_KEY) || "{}") }; } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} };
+const key = (im, d) => `${im.id}:${d.id}`;
+
+let cur = 0, sel = null, showLabels = true;
+const catOn = Object.fromEntries(D.categories.map(c => [c.id, true]));
+const visible = im => im.det.filter(d => catOn[d.cat]);
+const isDone = im => !!S.done[im.id];
+
+function renderStats() {
+  // only images marked as reviewed count, so a half-reviewed image can't skew the numbers
+  let ok = 0, judged = 0, missed = 0, done = 0, nDet = 0;
+  D.images.forEach(im => {
+    nDet += im.det.length;
+    if (!isDone(im)) return;
+    done++;
+    im.det.forEach(d => { const t = S.tags[key(im, d)]; if (t && t !== "unsure") { judged++; if (t === "correct") ok++; } });
+    missed += Object.values(S.missed[im.id] || {}).reduce((a, b) => a + (+b || 0), 0);
+  });
+  const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "–";
+  document.getElementById("stats").innerHTML =
+    `<span>Imagens <b>${D.images.length}</b></span><span>Caixas do SAM3 <b>${nDet}</b></span>` +
+    `<span>Revisadas <b>${done}/${D.images.length}</b></span>` +
+    `<span>Precisão <b>${pct(ok / judged)}</b> <span class="muted">(${ok}/${judged})</span></span>` +
+    `<span>Recall estimado <b>${pct(ok / (ok + missed))}</b> <span class="muted">(${missed} não detectados)</span></span>`;
+}
+
+function renderList() {
+  const el = document.getElementById("list");
+  el.innerHTML = D.images.map((im, i) => {
+    const t = im.det.filter(d => S.tags[key(im, d)]).length;
+    return `<div class="row ${i === cur ? "cur" : ""}" data-i="${i}"><span>${i + 1}.</span>
+      <span>${isDone(im) ? '<span class="done">✓</span> ' : ""}<span class="muted">${t}/${im.det.length}</span></span></div>`;
+  }).join("");
+  el.querySelectorAll(".row").forEach(r => r.onclick = () => go(+r.dataset.i));
+  el.querySelector(".cur")?.scrollIntoView({ block: "nearest" });
+}
+
+function renderChips() {
+  document.getElementById("catchips").innerHTML = D.categories.map(c =>
+    `<button class="${catOn[c.id] ? "on" : ""}" data-c="${c.id}" title="prompt: ${c.prompt}">` +
+    `<span class="sw" style="background:${cats[c.id].color}"></span> ${c.name}</button>`).join("");
+  document.querySelectorAll("#catchips button").forEach(b => b.onclick = () => { catOn[b.dataset.c] = !catOn[b.dataset.c]; render(); });
+}
+
+function renderImage() {
+  const im = D.images[cur];
+  document.getElementById("img").src = im.file;
+  document.getElementById("imgname").textContent = `${cur + 1}/${D.images.length} · ${im.path.split("/").slice(-2).join("/")}`;
+  const svg = document.getElementById("svg");
+  svg.setAttribute("viewBox", `0 0 ${im.width} ${im.height}`);
+  svg.innerHTML = visible(im).map(d => {
+    const [x, y, w, h] = d.bbox, t = S.tags[key(im, d)], c = cats[d.cat].color;
+    const cls = [t && t !== "correct" && t !== "unsure" ? "tagged-bad" : "", d.id === sel ? "sel" : ""].join(" ");
+    const label = showLabels ? `<text x="${x + 3}" y="${Math.max(13, y - 4)}" fill="${c}">${cats[d.cat].name} ${d.score.toFixed(2)}</text>` : "";
+    return `<rect data-id="${d.id}" class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}" stroke="${c}"></rect>${label}`;
+  }).join("");
+  document.getElementById("stage").classList.toggle("dim", !!sel);
+  svg.querySelectorAll("rect").forEach(r => r.onclick = () => { sel = sel === r.dataset.id ? null : r.dataset.id; render(); });
+
+  const m = S.missed[im.id] || {};
+  document.getElementById("missed").innerHTML = D.categories.map(c =>
+    `<label><span class="sw" style="background:${cats[c.id].color}"></span> ${c.name}</label>` +
+    `<input type="number" min="0" data-c="${c.id}" value="${m[c.id] ?? ""}" placeholder="0">`).join("");
+  document.querySelectorAll("#missed input").forEach(inp => inp.oninput = () => {
+    (S.missed[im.id] ||= {})[inp.dataset.c] = inp.value; save(); renderStats();
+  });
+  const mb = document.getElementById("markDone");
+  mb.classList.toggle("on", isDone(im));
+  mb.textContent = isDone(im) ? "Imagem revisada ✓" : "Marcar imagem como revisada";
+
+  document.getElementById("detcount").textContent = `(${im.det.length})`;
+  document.getElementById("items").innerHTML = visible(im).map(d => {
+    const k = key(im, d), t = S.tags[k];
+    return `<tr class="item ${d.id === sel ? "sel" : ""}" data-id="${d.id}"><td>
+      <span class="sw" style="background:${cats[d.cat].color}"></span> ${cats[d.cat].name}
+      <span class="muted">· ${d.score.toFixed(2)}</span>
+      <div class="tags">${TAGS.map(([v, l], i) => `<button class="${t === v ? "on" : ""}" data-k="${k}" data-v="${v}"><kbd>${i + 1}</kbd>${l}</button>`).join("")}</div>
+    </td></tr>`;
+  }).join("") || '<tr><td class="muted">O SAM3 não gerou nenhuma caixa nesta imagem.</td></tr>';
+  document.querySelectorAll("tr.item").forEach(tr => tr.onclick = e => {
+    if (e.target.closest("button")) return;
+    sel = sel === tr.dataset.id ? null : tr.dataset.id; render();
+  });
+  document.querySelectorAll(".tags button").forEach(b => b.onclick = () => {
+    S.tags[b.dataset.k] === b.dataset.v ? delete S.tags[b.dataset.k] : S.tags[b.dataset.k] = b.dataset.v;
+    save(); render();
+  });
+  document.querySelector("tr.item.sel")?.scrollIntoView({ block: "nearest" });
+}
+
+function render() { renderStats(); renderList(); renderChips(); renderImage(); }
+function go(i) { cur = Math.max(0, Math.min(D.images.length - 1, i)); sel = null; render(); }
+function markRestCorrect() {
+  const im = D.images[cur];
+  visible(im).forEach(d => { const k = key(im, d); if (!S.tags[k]) S.tags[k] = "correct"; });
+  save(); render();
+}
+
+document.getElementById("prev").onclick = () => go(cur - 1);
+document.getElementById("next").onclick = () => go(cur + 1);
+document.getElementById("toggleLabels").onclick = e => { showLabels = !showLabels; e.target.classList.toggle("on", showLabels); render(); };
+document.getElementById("markDone").onclick = () => {
+  const im = D.images[cur]; S.done[im.id] ? delete S.done[im.id] : S.done[im.id] = true; save(); render();
+};
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const im = D.images[cur], items = visible(im), idx = items.findIndex(d => d.id === sel);
+  if (e.key === "ArrowRight") go(cur + 1);
+  else if (e.key === "ArrowLeft") go(cur - 1);
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!items.length) return;
+    const n = e.key === "ArrowDown" ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+    sel = items[n].id; render();
+  } else if (e.key === "c") markRestCorrect();
+  else if (e.key === "l") document.getElementById("toggleLabels").click();
+  else if (/^[0-6]$/.test(e.key) && idx >= 0) {
+    const k = key(im, items[idx]);
+    if (e.key === "0") delete S.tags[k]; else S.tags[k] = TAGS[+e.key - 1][0];
+    save();
+    const nxt = items.find((d, j) => j > idx && !S.tags[key(im, d)]);
+    if (nxt) sel = nxt.id;
+    render();
+  } else return;
+  e.preventDefault();
+});
+
+const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+document.getElementById("export").onclick = () => {
+  const rows = [["image_id", "path", "reviewed", "item_id", "category", "score", "tag"].join(",")];
+  D.images.forEach(im => {
+    im.det.forEach(d => rows.push([im.id, q(im.path), isDone(im) ? 1 : 0, d.id, cats[d.cat].name, d.score.toFixed(4),
+                                   S.tags[key(im, d)] ?? ""].join(",")));
+    Object.entries(S.missed[im.id] || {}).forEach(([c, n]) => { if (+n) for (let i = 0; i < +n; i++)
+      rows.push([im.id, q(im.path), isDone(im) ? 1 : 0, `missed${c}_${i}`, cats[c].name, "", "missed"].join(",")); });
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([rows.join("\n") + "\n"], { type: "text/csv" }));
+  a.download = `sam3_unannotated_review_seed${D.seed}.csv`; a.click();
+};
+document.getElementById("import").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const parse = l => l.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(c => c.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"'));
+  const lines = (await f.text()).trim().split("\n"), head = parse(lines[0]);
+  const ix = n => head.indexOf(n);
+  const nameToId = Object.fromEntries(D.categories.map(c => [c.name, c.id]));
+  S = { tags: {}, missed: {}, done: {} };
+  lines.slice(1).forEach(l => {
+    const c = parse(l), iid = c[ix("image_id")];
+    if (c[ix("reviewed")] === "1") S.done[iid] = true;
+    if (c[ix("tag")] === "missed") { const m = (S.missed[iid] ||= {}), cid = nameToId[c[ix("category")]]; m[cid] = (+m[cid] || 0) + 1; }
+    else if (c[ix("tag")]) S.tags[`${iid}:${c[ix("item_id")]}`] = c[ix("tag")];
+  });
+  save(); render(); e.target.value = "";
+};
+
+render();
+</script>
+</body>
+</html>

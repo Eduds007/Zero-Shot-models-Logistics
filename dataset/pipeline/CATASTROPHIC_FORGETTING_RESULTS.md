@@ -275,3 +275,181 @@ nas classes não vistas, contra 51.2% do paper -- com a ressalva de que o
 pré-treino do SAM3 pode incluir essas espécies). O método serve para o
 cenário em que o dataset antigo continua disponível, não para o IZSL sem
 armazenamento.
+
+## Experimentos de outubro de 2026 (depois da decisão final)
+
+Todos os números são AP50, média de 3 seeds, salvo indicação. Os
+resultados brutos ficam em `self_training/results_*.json` e os logs em
+`logs/`. Referência de produção (`loco_full_v3`): SLC .385, forklift .262,
+pallet .632, stillage .496, pallet_truck .278.
+
+### Anotador oráculo (`oracle_annotator.py`)
+
+Pergunta: o esquecimento de `stillage`/`pallet_truck` vem de pseudo-rótulos
+ruins? Mesmas 1760 imagens do LOCO train, mesma receita, só o anotador muda.
+
+| braço | SLC | forklift | pallet | stillage | pallet_truck |
+|---|---|---|---|---|---|
+| híbrido (pseudo-rótulos) | .391 | .233 | .637 | .469 | **.261** |
+| oráculo em stillage + pallet_truck | .393 | .254 | .637 | .465 | .222 |
+| oráculo em todas as classes | .368 | .199 | .645 | .474 | .221 |
+
+Rótulos humanos perfeitos não resolvem, e pallet_truck fica pior com eles.
+Leitura: os pseudo-rótulos do modelo antigo funcionam como destilação (o
+modelo novo imita o antigo, inclusive o que ele erra), e isso preserva
+melhor que a "verdade". A causa do esquecimento não é a qualidade do
+anotador. (A primeira rodada foi invalidada pelo bug do autocast bf16 do
+SAM3, ver `results_oracle_annotator.broken_autocast.json`; o SAM3 agora
+roda sempre em subprocesso.)
+
+### Qualidade dos rótulos do SAM3 (`sam3_label_quality.py`, `sam3_prompt_ensemble.py`)
+
+- iw_hub (Roboflow, 509 imagens, prompt "yellow robot platform", conf 0.5):
+  precisão .99, recall .73, AP50 .96; zero caixas falsas em 500 imagens do
+  LOCO.
+- Classes do LOCO: ver `sam3_label_quality.json`. Ensemble de prompts
+  (`sam3_prompt_ensemble.json`) não ganhou do melhor prompt único.
+- No LOCO train inteiro (2538 imagens, contra rótulos humanos, IoU 0.5):
+
+| classe | precisão | recall | caixas humanas |
+|---|---|---|---|
+| SLC | .45 | .36 | 11956 |
+| forklift | .31 | .56 | 438 |
+| pallet | .45 | .26 | 61066 |
+| stillage | .58 | .44 | 3149 |
+| pallet_truck | .57 | .33 | 1531 |
+
+### Item 3: baselines de anti-forgetting (`baselines.py`)
+
+Fine-tune do modelo de produção adicionando iw_hub, freeze=21, imgsz 960,
+batch 8, 30 épocas fixas, `last.pt`, 3 seeds. Teste LOCO val oficial.
+
+| variante | SLC | forklift | pallet | stillage | pallet_truck | perda média |
+|---|---|---|---|---|---|---|
+| a ingênuo (só iw_hub) | .150 | 0 | .197 | .156 | 0 | −75% |
+| b replay | .380 | .131 | .640 | .450 | .205 | −12% |
+| c replay + destilação | .379 | .179 | .640 | .456 | .225 | −8.5% |
+| d copy-paste | .375 | .142 | .638 | .446 | .203 | −12% |
+| e self-training | .372 | .204 | .635 | .451 | .212 | −9% |
+| f banco híbrido | .373 | .230 | .632 | .458 | .240 | −6% |
+| **g pseudo-rótulos no LOCO train** | .386 | .220 | .636 | .462 | .270 | **−3.8%** |
+| h treino conjunto | .373 | .175 | .646 | .465 | .216 | −9% |
+
+- iw_hub (vídeo do laboratório) fica em ~.98–1.0 em todas as variantes.
+- Nenhuma variante de modelo único passa o gate (0/3 seeds cada).
+- Dois modelos (`two_model`): classes do LOCO intactas por construção;
+  passa em 2/3 seeds, o seed 1 reprova na taxa de falso positivo do
+  especialista no LOCO val (2.06% > 1%).
+- Melhor receita de modelo único: **g**.
+
+### Item 5: segunda classe nova, braço KUKA (`kuka_arm_experiment.py`)
+
+Só com frames já gravados (sem nova gravação). Base: g seed 2. Treino: lote
+g sem os frames de 2026-10-05, mais caixas do SAM3 ("robotic arm", 0.5) nos
+frames do robô. Teste: 84 frames de 2026-10-05 corrigidos à mão (109
+braços, `fixed_testset/robotic_arm`). Na varredura, o SAM3 achou o braço em
+21% dos 880 frames do banco; contra o teste corrigido, precisão ≈ .98 e
+recall ≈ .80.
+
+| classe | base (g s2) | + braço |
+|---|---|---|
+| SLC | .384 | .399 |
+| forklift | .229 | .226 |
+| pallet | .636 | .635 |
+| stillage | .463 | .462 |
+| pallet_truck | .272 | .237 (−13%) |
+| iw_hub | .531 | .584 |
+| robotic_arm | 0 | .305 (seeds .283/.338/.293) |
+
+pallet_truck reprova nos 3 seeds (IC inteiro abaixo de −0.01), então 0/3
+passam. Média LOCO −1.3% contra a base e −4.6% acumulado contra a produção.
+Nota: com ultralytics 8.4.131 a cabeça nc=6→7 transfere todos os pesos
+(475/475), não há reinicialização da cabeça.
+
+### Zero humano: YOLO do zero com rótulos do SAM3 vs humanos (`loco_sam3_vs_human.py`)
+
+YOLOv8m de `yolov8m.pt` (COCO), imgsz 960, batch 16, 150 épocas, patience
+40, `best.pt`. Mesmas imagens: treino 2538 / val 282 (LOCO train, seed 0),
+cada braço validando com os próprios rótulos; teste LOCO val (2277
+imagens, rótulos humanos).
+
+| classe | humano | SAM3 | seeds com diferença significativa (IC 95%) |
+|---|---|---|---|
+| SLC | .349 | **.427** | 3/3 SAM3 melhor |
+| forklift | **.125** | .078 | 2/3 SAM3 pior |
+| pallet | **.616** | .319 | 3/3 SAM3 pior (−0.27 a −0.32) |
+| stillage | .421 | .437 | 0/3 (empate) |
+| pallet_truck | .173 | **.213** | 2/3 SAM3 melhor |
+| **média** | **.337** | **.295** (88%) | |
+
+Sem pallet, a média das outras 4 classes é .289 (SAM3) contra .267
+(humano). Pallet é quase toda a perda: o SAM3 encontra só 26% dos pallets.
+Os modelos humanos daqui ficam abaixo da produção porque a produção
+escolheu o `best.pt` no próprio LOCO val; aqui a validação é separada do
+teste. Val ~.76–.78 mAP50 contra ~.30–.36 no teste: a troca de armazém é a
+maior dificuldade.
+
+### Simulação no treino (`loco_synthetic_mix.py`)
+
+Braço humano acima + 202 renders do Isaac Sim (`test_dataset` de
+github.com/vidaldani/3D_object_detection; klt→SLC, forklift, pallet,
+stillage, pallet_truck; transporter descartado) no treino. Val e teste só
+com imagens reais.
+
+**v1 (sem querer, sem as 70 caixas de pallet do sintético; elas ficaram
+como fundo)**, `results_loco_synthetic_mix_v1_no_pallet_labels.json`:
+
+| classe | humano | humano + sintético | seeds com diferença significativa |
+|---|---|---|---|
+| SLC | .349 | .323 | 2/3 pior |
+| forklift | .125 | **.225** (+80%) | 3/3 melhor |
+| pallet | .616 | .617 | irrelevante (±0.01) |
+| stillage | .421 | .441 | instável (2 melhor, 1 pior) |
+| pallet_truck | .173 | .206 | 1/3 melhor, 2 no limite |
+| **média** | .337 | **.362** (+7.6%) | |
+
+O ganho vem da classe mais rara: forklift tem 438 caixas reais no treino, e
+o sintético adiciona 123.
+
+**v2 (com os rótulos de pallet)**: a primeira tentativa morreu em
+2026-10-26 14:31, na época 61 do seed 0, sem traceback (provável SIGKILL;
+`logs/loco_synthetic_mix_v2_killed.log`). Relançada em 2026-10-28 na sessão
+tmux `synthmix2`, retomando do `last.pt`, com 4 workers nos seeds novos e
+até 3 tentativas. Resultado em `results_loco_synthetic_mix.json` quando
+terminar.
+
+### Claude como anotador (teste parcial, 2026-10-28)
+
+Opus 5.5 anotando à mão (imagem com grade de coordenadas) 26 imagens do
+LOCO val sorteadas (`dataset/claude_annot/`), contra os rótulos humanos,
+IoU 0.5. As 6 primeiras serviram para aprender as convenções do LOCO.
+
+| classe | caixas humanas | caixas do Claude | acertos | precisão | recall |
+|---|---|---|---|---|---|
+| pallet | 889 | 198 | 76 | .38 | .09 |
+| pallet_truck | 5 | 6 | 4 | .67 | .80 |
+
+O LOCO tem ~34 pallets por imagem, 71% nas prateleiras altas; o Claude
+anota bem os pallets do chão, quase nenhum das prateleiras, e 65 das 198
+caixas ficaram com IoU entre 0.3 e 0.5 (objeto certo, caixa imprecisa).
+Conclusão: o Claude reconhece bem o que é cada objeto, mas a localização
+não serve para anotação densa. Uso promissor: revisor das caixas do SAM3
+(sim/não por recorte), ainda não testado. Outros detectores zero-shot já
+testados em agosto (`dataset/results/loco_eval_results_zeroshot.csv`):
+Grounding DINO tiny ~.06, MM-Grounding-DINO large ~.01, OWLv2 ~.14, SAM3
+.30 no val completo.
+
+### Situação dos itens da tese (2026-10-28)
+
+1. Demonstração do ciclo completo: pendente, depende da escolha entre
+   modelo único (g) e dois modelos.
+2. Teste independente do iw_hub: pela metade (falta gravação independente
+   ou separar os frames de 05/10); em espera por decisão do autor.
+3. Baselines: feito.
+4. Qualidade dos rótulos do SAM3: feito.
+5. Segunda classe: feito (offline, KUKA).
+6. Limitações: a escrever.
+
+Perguntas abertas: por que pseudo-rótulos preservam melhor que rótulos
+humanos (destilação, ver oráculo); como proteger pallet_truck; Roboflow 50
+vs 509 imagens no gate; regras da TUM sobre declarar uso de IA.

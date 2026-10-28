@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GT vs SAM3</title>
+<style>
+  :root {
+    --bg: #111317; --panel: #1a1d23; --panel2: #22262e; --line: #2f343d;
+    --text: #e6e8eb; --muted: #9aa1ac; --accent: #4f8cff;
+    --tp: #3ecf8e; --fp: #ff5c5c; --fn: #ffb020;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+           border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  button, .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+                 border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit; }
+  button:hover, .btn:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; height: calc(100vh - 52px); }
+  aside { border-right: 1px solid var(--line); overflow-y: auto; background: var(--panel); }
+  aside .row { display: flex; justify-content: space-between; padding: 6px 12px; cursor: pointer;
+               border-bottom: 1px solid var(--line); gap: 6px; }
+  aside .row:hover { background: var(--panel2); }
+  aside .row.cur { background: #24324d; }
+  aside .row .done { color: var(--tp); }
+  main { overflow-y: auto; padding: 12px 16px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pane h2 { font-size: 13px; margin: 0 0 6px; font-weight: 600; color: var(--muted); }
+  .pane h2 b { color: var(--text); }
+  .stage { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+  .stage img { display: block; width: 100%; height: auto; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage rect { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; }
+  .stage rect.err { stroke-width: 3; stroke-dasharray: 7 4; }
+  .stage rect.sel { stroke-width: 5; stroke-dasharray: none; filter: drop-shadow(0 0 4px #fff); }
+  .stage rect.ghost { stroke: #fff !important; stroke-width: 2; stroke-dasharray: 3 3; opacity: .85; pointer-events: none; }
+  .stage.dim rect:not(.sel):not(.ghost) { opacity: .25; }
+  .legend { color: var(--muted); margin: 8px 0 0; display: flex; gap: 14px; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg); }
+  tr.item { cursor: pointer; }
+  tr.item:hover { background: var(--panel); }
+  tr.item.sel { background: #24324d; }
+  .kind { font-weight: 700; }
+  .kind.FP { color: var(--fp); } .kind.FN { color: var(--fn); } .kind.TP { color: var(--tp); }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tags button { padding: 2px 7px; font-size: 12px; }
+  .tags button kbd { opacity: .6; margin-right: 3px; font-family: inherit; }
+  .muted { color: var(--muted); }
+  .help { color: var(--muted); font-size: 12px; margin-top: 14px; }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 11px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; }
+    aside { max-height: 180px; } .panes { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>GT vs SAM3 · LOCO</h1>
+  <div class="stats" id="stats"></div>
+  <div class="spacer"></div>
+  <button id="export">Exportar CSV</button>
+  <label class="btn">Importar CSV<input id="import" type="file" accept=".csv" hidden></label>
+</header>
+<div class="layout">
+  <aside id="list"></aside>
+  <main>
+    <div class="toolbar">
+      <button id="prev">← Anterior</button>
+      <button id="next">Próxima →</button>
+      <span id="imgname" class="muted"></span>
+      <div class="spacer"></div>
+      <button id="toggleTP" class="on">Mostrar TP</button>
+      <span id="catchips" class="toolbar" style="margin:0"></span>
+    </div>
+    <div class="panes">
+      <div class="pane"><h2>Ground truth (LOCO) · <b id="gtcount"></b></h2>
+        <div class="stage" id="stageGT"><img id="imgGT"><svg id="svgGT"></svg></div></div>
+      <div class="pane"><h2>SAM3 (sam3_v6) · <b id="detcount"></b></h2>
+        <div class="stage" id="stageDet"><img id="imgDet"><svg id="svgDet"></svg></div></div>
+    </div>
+    <div class="legend">
+      <span>Contorno sólido = acerto (TP)</span>
+      <span><span style="color:var(--fp)">Tracejado no SAM3</span> = falso positivo (FP)</span>
+      <span><span style="color:var(--fn)">Tracejado no GT</span> = não detectado (FN)</span>
+      <span>Branco pontilhado = par / GT mais próximo do item selecionado</span>
+    </div>
+    <table>
+      <thead><tr><th>Tipo</th><th>Classe</th><th>Score</th><th>IoU</th><th>Sugestão auto</th><th>Sua avaliação</th></tr></thead>
+      <tbody id="items"></tbody>
+    </table>
+    <div class="help">
+      <kbd>←</kbd>/<kbd>→</kbd> imagem · <kbd>↑</kbd>/<kbd>↓</kbd> item · <kbd>1</kbd>–<kbd>6</kbd> marcar item selecionado ·
+      <kbd>0</kbd> limpar · <kbd>t</kbd> mostrar/ocultar TP. As marcações são salvas no navegador automaticamente; use
+      <b>Exportar CSV</b> ao terminar e rode <code>score_sam3_gt_review.py</code>.
+    </div>
+  </main>
+</div>
+<script src="data.js"></script>
+<script>
+const D = window.REVIEW_DATA;
+const CAT_COLORS = ["#ffd23f", "#ff6ad5", "#3ecf8e", "#4fc3ff", "#ff8a3d"];
+const cats = {}; D.categories.forEach((c, i) => cats[c.id] = { ...c, color: CAT_COLORS[i % CAT_COLORS.length] });
+
+const TAGS = {
+  FP: [["missing_gt", "Objeto real, falta no GT"], ["wrong_class", "Classe errada"],
+       ["bad_box", "Caixa imprecisa"], ["duplicate", "Duplicata"],
+       ["false_alarm", "Falso positivo real"], ["unsure", "Incerto"]],
+  FN: [["sam3_miss", "SAM3 deixou passar"], ["hard", "Pequeno/oculto"],
+       ["gt_wrong", "GT errado/duvidoso"], ["unsure", "Incerto"]],
+};
+const HINT_LABEL = { wrong_class: "Classe errada", duplicate: "Duplicata", bad_box: "Caixa imprecisa",
+                     no_gt_overlap: "Sem GT próximo" };
+
+const STORE_KEY = `sam3_gt_review_${D.config}_seed${D.seed}`;
+let tags = {};
+try { tags = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (e) { tags = {}; }
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(tags)); } catch (e) {} };
+const key = (im, it) => `${im.id}:${it.id}`;
+
+let cur = 0, sel = null, showTP = true;
+const catOn = Object.fromEntries(D.categories.map(c => [c.id, true]));
+
+function errItems(im) {
+  const fp = im.det.filter(d => d.status === "FP").map(d => ({ ...d, kind: "FP" }));
+  const fn = im.gt.filter(g => g.status === "FN").map(g => ({ ...g, kind: "FN" }));
+  return [...fp, ...fn];
+}
+function visibleItems(im) {
+  const items = errItems(im);
+  if (showTP) items.push(...im.det.filter(d => d.status === "TP").map(d => ({ ...d, kind: "TP" })));
+  return items.filter(it => catOn[it.cat]);
+}
+const reviewedCount = im => errItems(im).filter(it => tags[key(im, it)]).length;
+
+function renderStats() {
+  let tp = 0, fp = 0, fn = 0, done = 0, total = 0;
+  D.images.forEach(im => {
+    tp += im.det.filter(d => d.status === "TP").length;
+    fp += im.det.filter(d => d.status === "FP").length;
+    fn += im.gt.filter(g => g.status === "FN").length;
+    done += reviewedCount(im); total += errItems(im).length;
+  });
+  // corrected: FPs tagged as real-but-missing-from-GT become TPs; FNs tagged as GT errors are dropped
+  let missGT = 0, gtWrong = 0;
+  for (const [k, v] of Object.entries(tags)) { if (v === "missing_gt") missGT++; if (v === "gt_wrong") gtWrong++; }
+  const P = tp / (tp + fp), R = tp / (tp + fn);
+  const Pc = (tp + missGT) / (tp + fp), Rc = (tp + missGT) / (tp + missGT + fn - gtWrong);
+  const pct = x => isFinite(x) ? (100 * x).toFixed(1) + "%" : "–";
+  document.getElementById("stats").innerHTML =
+    `<span>TP <b>${tp}</b></span><span>FP <b>${fp}</b></span><span>FN <b>${fn}</b></span>` +
+    `<span>Precisão <b>${pct(P)}</b> → corrigida <b>${pct(Pc)}</b></span>` +
+    `<span>Recall <b>${pct(R)}</b> → corrigido <b>${pct(Rc)}</b></span>` +
+    `<span>Revisados <b>${done}/${total}</b></span>`;
+}
+
+function renderList() {
+  const el = document.getElementById("list");
+  el.innerHTML = D.images.map((im, i) => {
+    const e = errItems(im).length, r = reviewedCount(im);
+    const fp = im.det.filter(d => d.status === "FP").length, fn = im.gt.filter(g => g.status === "FN").length;
+    return `<div class="row ${i === cur ? "cur" : ""}" data-i="${i}">
+      <span>${i + 1}. <span class="muted">${im.id}</span></span>
+      <span><span style="color:var(--fp)">${fp}</span>/<span style="color:var(--fn)">${fn}</span>
+      ${e && r === e ? '<span class="done">✓</span>' : `<span class="muted">${r}/${e}</span>`}</span></div>`;
+  }).join("");
+  el.querySelectorAll(".row").forEach(r => r.onclick = () => go(+r.dataset.i));
+  el.querySelector(".cur")?.scrollIntoView({ block: "nearest" });
+}
+
+function boxSVG(it, cls) {
+  const [x, y, w, h] = it.bbox;
+  return `<rect data-id="${it.id}" class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}" stroke="${cats[it.cat].color}">` +
+         `<title>${cats[it.cat].name}${it.score != null ? " · " + it.score.toFixed(2) : ""} · ${it.status}</title></rect>`;
+}
+
+// nearest GT box (any class) for an FP, nearest same-class det for an FN -- drawn as a white ghost
+function partner(im, it) {
+  if (!it) return null;
+  if (it.match) return [...im.gt, ...im.det].find(x => x.id === it.match);
+  const pool = it.kind === "FP" ? im.gt : im.det.filter(d => d.cat === it.cat);
+  let best = null, bv = 0.05;
+  for (const p of pool) { const v = iou(it.bbox, p.bbox); if (v > bv) { best = p; bv = v; } }
+  return best;
+}
+function iou(a, b) {
+  const iw = Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]));
+  const ih = Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]));
+  const i = iw * ih; return i / (a[2] * a[3] + b[2] * b[3] - i);
+}
+
+function renderImage() {
+  const im = D.images[cur];
+  for (const id of ["imgGT", "imgDet"]) { document.getElementById(id).src = im.file; }
+  document.getElementById("imgname").textContent = `${cur + 1}/${D.images.length} · ${im.path}`;
+  const vb = `0 0 ${im.width} ${im.height}`;
+  const selItem = sel && [...im.gt, ...im.det].find(x => x.id === sel);
+  const ghost = partner(im, selItem && { ...selItem, kind: selItem.status === "TP" ? "TP" : (selItem.id.startsWith("gt") ? "FN" : "FP") });
+
+  const gtBoxes = im.gt.filter(g => catOn[g.cat] && (showTP || g.status === "FN"));
+  const detBoxes = im.det.filter(d => catOn[d.cat] && (showTP || d.status === "FP"));
+  const cls = it => [it.status === "TP" ? "" : "err", it.id === sel ? "sel" : ""].join(" ");
+  const ghostOn = (side) => ghost && (side === "gt" ? ghost.id.startsWith("gt") : !ghost.id.startsWith("gt"))
+    ? boxSVG(ghost, "ghost") : "";
+
+  const svgGT = document.getElementById("svgGT"), svgDet = document.getElementById("svgDet");
+  svgGT.setAttribute("viewBox", vb); svgDet.setAttribute("viewBox", vb);
+  svgGT.innerHTML = gtBoxes.map(g => boxSVG(g, cls(g))).join("") + ghostOn("gt");
+  svgDet.innerHTML = detBoxes.map(d => boxSVG(d, cls(d))).join("") + ghostOn("det");
+  // mirror the selection onto the other pane so the reviewer sees where it sits in both
+  if (selItem && !selItem.id.startsWith("gt")) svgGT.innerHTML += boxSVG(selItem, "ghost");
+  if (selItem && selItem.id.startsWith("gt")) svgDet.innerHTML += boxSVG(selItem, "ghost");
+  document.getElementById("stageGT").classList.toggle("dim", !!sel);
+  document.getElementById("stageDet").classList.toggle("dim", !!sel);
+  for (const svg of [svgGT, svgDet]) svg.querySelectorAll("rect:not(.ghost)").forEach(r =>
+    r.onclick = () => { sel = sel === r.dataset.id ? null : r.dataset.id; render(); });
+
+  document.getElementById("gtcount").textContent =
+    `${im.gt.length} caixas, ${im.gt.filter(g => g.status === "FN").length} FN`;
+  document.getElementById("detcount").textContent =
+    `${im.det.length} caixas, ${im.det.filter(d => d.status === "FP").length} FP`;
+
+  const items = visibleItems(im);
+  document.getElementById("items").innerHTML = items.map(it => {
+    const k = key(im, it), t = tags[k];
+    const btns = it.kind === "TP" ? '<span class="muted">—</span>' : TAGS[it.kind].map(([v, label], i) =>
+      `<button class="${t === v ? "on" : ""}" data-k="${k}" data-v="${v}"><kbd>${i + 1}</kbd>${label}</button>`).join("");
+    return `<tr class="item ${it.id === sel ? "sel" : ""}" data-id="${it.id}">
+      <td class="kind ${it.kind}">${it.kind}</td>
+      <td><span class="sw" style="background:${cats[it.cat].color}"></span> ${cats[it.cat].name}</td>
+      <td>${it.score != null ? it.score.toFixed(2) : "—"}</td>
+      <td>${it.iou != null ? it.iou.toFixed(2) : "—"}</td>
+      <td class="muted">${it.hint ? HINT_LABEL[it.hint] : ""}</td>
+      <td><div class="tags">${btns}</div></td></tr>`;
+  }).join("") || '<tr><td colspan="6" class="muted">Nenhum item para os filtros atuais.</td></tr>';
+  document.querySelectorAll("tr.item").forEach(tr => tr.onclick = e => {
+    if (e.target.closest("button")) return;
+    sel = sel === tr.dataset.id ? null : tr.dataset.id; render();
+  });
+  document.querySelectorAll(".tags button").forEach(b => b.onclick = () => {
+    tags[b.dataset.k] === b.dataset.v ? delete tags[b.dataset.k] : tags[b.dataset.k] = b.dataset.v;
+    save(); render();
+  });
+  document.querySelector("tr.item.sel")?.scrollIntoView({ block: "nearest" });
+}
+
+function renderChips() {
+  document.getElementById("catchips").innerHTML = D.categories.map(c =>
+    `<button class="chip ${catOn[c.id] ? "on" : ""}" data-c="${c.id}" title="prompt: ${c.prompt}">` +
+    `<span class="sw" style="background:${cats[c.id].color}"></span>${c.name}</button>`).join("");
+  document.querySelectorAll("#catchips button").forEach(b => b.onclick = () => {
+    catOn[b.dataset.c] = !catOn[b.dataset.c]; render();
+  });
+}
+
+function render() { renderStats(); renderList(); renderChips(); renderImage(); }
+function go(i) { cur = Math.max(0, Math.min(D.images.length - 1, i)); sel = null; render(); }
+
+document.getElementById("prev").onclick = () => go(cur - 1);
+document.getElementById("next").onclick = () => go(cur + 1);
+document.getElementById("toggleTP").onclick = e => { showTP = !showTP; e.target.classList.toggle("on", showTP); render(); };
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const im = D.images[cur], items = visibleItems(im).filter(it => it.kind !== "TP");
+  const idx = items.findIndex(it => it.id === sel);
+  if (e.key === "ArrowRight") go(cur + 1);
+  else if (e.key === "ArrowLeft") go(cur - 1);
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!items.length) return;
+    const n = e.key === "ArrowDown" ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+    sel = items[n].id; renderImage();
+  } else if (e.key === "t") document.getElementById("toggleTP").click();
+  else if (/^[0-6]$/.test(e.key) && idx >= 0) {
+    const it = items[idx], k = key(im, it);
+    if (e.key === "0") delete tags[k];
+    else { const t = TAGS[it.kind][+e.key - 1]; if (!t) return; tags[k] = t[0]; }
+    save();
+    // jump to the next unreviewed item so tagging can be done with the keyboard alone
+    const nxt = items.find((x, j) => j > idx && !tags[key(im, x)]);
+    if (nxt) sel = nxt.id;
+    render();
+  } else return;
+  e.preventDefault();
+});
+
+document.getElementById("export").onclick = () => {
+  const rows = [["image_id", "path", "item_id", "kind", "category", "score", "iou", "auto_hint", "tag"]];
+  D.images.forEach(im => errItems(im).forEach(it => rows.push([im.id, im.path, it.id, it.kind, cats[it.cat].name,
+    it.score != null ? it.score.toFixed(4) : "", it.iou ?? "", it.hint ?? "", tags[key(im, it)] ?? ""])));
+  const blob = new Blob([rows.map(r => r.join(",")).join("\n") + "\n"], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `sam3_gt_review_seed${D.seed}.csv`; a.click();
+};
+document.getElementById("import").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const lines = (await f.text()).trim().split("\n"), head = lines[0].split(",");
+  const iI = head.indexOf("image_id"), iIt = head.indexOf("item_id"), iT = head.indexOf("tag");
+  lines.slice(1).forEach(l => { const c = l.split(","); if (c[iT]) tags[`${c[iI]}:${c[iIt]}`] = c[iT]; });
+  save(); render(); e.target.value = "";
+};
+
+render();
+</script>
+</body>
+</html>

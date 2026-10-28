@@ -1,0 +1,368 @@
+{
+  "conf": 0.5,
+  "match_iou": 0.5,
+  "min_gain": 0.005,
+  "prompts": {
+    "small_load_carrier": [
+      "plastic crate",
+      "small load carrier",
+      "plastic storage bin",
+      "stackable plastic box",
+      "blue plastic container",
+      "KLT box"
+    ],
+    "forklift": [
+      "forklift",
+      "forklift truck",
+      "industrial lift truck",
+      "counterbalance forklift",
+      "reach truck",
+      "warehouse forklift vehicle"
+    ],
+    "pallet": [
+      "pallet",
+      "wooden pallet",
+      "euro pallet",
+      "shipping pallet",
+      "plastic pallet",
+      "wooden skid"
+    ],
+    "stillage": [
+      "wire mesh crate",
+      "stillage",
+      "metal mesh container",
+      "wire mesh box pallet",
+      "metal cage container",
+      "steel lattice box"
+    ],
+    "pallet_truck": [
+      "pallet jack",
+      "hand pallet truck",
+      "manual pallet truck",
+      "pallet lifter",
+      "hand truck with forks",
+      "electric pallet jack"
+    ],
+    "iw_hub": [
+      "yellow robot platform",
+      "yellow mobile robot",
+      "autonomous mobile robot",
+      "low yellow robotic vehicle",
+      "yellow transport robot",
+      "flat yellow AGV"
+    ]
+  },
+  "classes": {
+    "small_load_carrier": {
+      "tuning": {
+        "per_prompt_f1": {
+          "plastic crate": 0.3676,
+          "small load carrier": 0.0,
+          "plastic storage bin": 0.1178,
+          "stackable plastic box": 0.037,
+          "blue plastic container": 0.0355,
+          "KLT box": 0.0
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "plastic crate"
+            ],
+            "f1": 0.3676
+          },
+          "mean": {
+            "prompts": [
+              "plastic crate"
+            ],
+            "f1": 0.3676
+          }
+        },
+        "chosen_mode": "max"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.5907,
+          "recall": 0.6531,
+          "mean_iou_matched": 0.7153,
+          "tp": 5820,
+          "fp": 4032,
+          "n_gt": 8911,
+          "ap50": 0.5892,
+          "f1": 0.6204
+        },
+        "ensemble": {
+          "precision": 0.5907,
+          "recall": 0.6531,
+          "mean_iou_matched": 0.7153,
+          "tp": 5820,
+          "fp": 4032,
+          "n_gt": 8911,
+          "ap50": 0.5892,
+          "f1": 0.6204
+        }
+      }
+    },
+    "forklift": {
+      "tuning": {
+        "per_prompt_f1": {
+          "forklift": 0.4273,
+          "forklift truck": 0.1684,
+          "industrial lift truck": 0.2568,
+          "counterbalance forklift": 0.321,
+          "reach truck": 0.0,
+          "warehouse forklift vehicle": 0.3182
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "forklift",
+              "forklift truck"
+            ],
+            "f1": 0.4352
+          },
+          "mean": {
+            "prompts": [
+              "forklift"
+            ],
+            "f1": 0.4273
+          }
+        },
+        "chosen_mode": "max"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.0894,
+          "recall": 0.3145,
+          "mean_iou_matched": 0.7601,
+          "tp": 39,
+          "fp": 397,
+          "n_gt": 124,
+          "ap50": 0.0492,
+          "f1": 0.1393
+        },
+        "ensemble": {
+          "precision": 0.0905,
+          "recall": 0.3065,
+          "mean_iou_matched": 0.7604,
+          "tp": 38,
+          "fp": 382,
+          "n_gt": 124,
+          "ap50": 0.049,
+          "f1": 0.1397
+        }
+      }
+    },
+    "pallet": {
+      "tuning": {
+        "per_prompt_f1": {
+          "pallet": 0.3447,
+          "wooden pallet": 0.3183,
+          "euro pallet": 0.0,
+          "shipping pallet": 0.3449,
+          "plastic pallet": 0.0342,
+          "wooden skid": 0.3054
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "shipping pallet"
+            ],
+            "f1": 0.3449
+          },
+          "mean": {
+            "prompts": [
+              "shipping pallet"
+            ],
+            "f1": 0.3449
+          }
+        },
+        "chosen_mode": "max"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.5426,
+          "recall": 0.3213,
+          "mean_iou_matched": 0.6992,
+          "tp": 16804,
+          "fp": 14168,
+          "n_gt": 52297,
+          "ap50": 0.3112,
+          "f1": 0.4036
+        },
+        "ensemble": {
+          "precision": 0.5502,
+          "recall": 0.3027,
+          "mean_iou_matched": 0.6995,
+          "tp": 15829,
+          "fp": 12942,
+          "n_gt": 52297,
+          "ap50": 0.3024,
+          "f1": 0.3905
+        }
+      }
+    },
+    "stillage": {
+      "tuning": {
+        "per_prompt_f1": {
+          "wire mesh crate": 0.4726,
+          "stillage": 0.0,
+          "metal mesh container": 0.3281,
+          "wire mesh box pallet": 0.3569,
+          "metal cage container": 0.4422,
+          "steel lattice box": 0.0761
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "wire mesh crate"
+            ],
+            "f1": 0.4726
+          },
+          "mean": {
+            "prompts": [
+              "wire mesh crate",
+              "metal cage container"
+            ],
+            "f1": 0.4883
+          }
+        },
+        "chosen_mode": "mean"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.5963,
+          "recall": 0.5585,
+          "mean_iou_matched": 0.7807,
+          "tp": 1121,
+          "fp": 759,
+          "n_gt": 2007,
+          "ap50": 0.5683,
+          "f1": 0.5768
+        },
+        "ensemble": {
+          "precision": 0.6652,
+          "recall": 0.5366,
+          "mean_iou_matched": 0.7814,
+          "tp": 1077,
+          "fp": 542,
+          "n_gt": 2007,
+          "ap50": 0.5861,
+          "f1": 0.594
+        }
+      }
+    },
+    "pallet_truck": {
+      "tuning": {
+        "per_prompt_f1": {
+          "pallet jack": 0.4252,
+          "hand pallet truck": 0.033,
+          "manual pallet truck": 0.0395,
+          "pallet lifter": 0.033,
+          "hand truck with forks": 0.0,
+          "electric pallet jack": 0.3937
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "pallet jack",
+              "electric pallet jack"
+            ],
+            "f1": 0.4435
+          },
+          "mean": {
+            "prompts": [
+              "pallet jack"
+            ],
+            "f1": 0.4252
+          }
+        },
+        "chosen_mode": "max"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.7552,
+          "recall": 0.3773,
+          "mean_iou_matched": 0.7818,
+          "tp": 435,
+          "fp": 141,
+          "n_gt": 1153,
+          "ap50": 0.469,
+          "f1": 0.5032
+        },
+        "ensemble": {
+          "precision": 0.7567,
+          "recall": 0.3912,
+          "mean_iou_matched": 0.7778,
+          "tp": 451,
+          "fp": 145,
+          "n_gt": 1153,
+          "ap50": 0.4792,
+          "f1": 0.5157
+        }
+      }
+    },
+    "iw_hub": {
+      "tuning": {
+        "per_prompt_f1": {
+          "yellow robot platform": 0.8103,
+          "yellow mobile robot": 0.5352,
+          "autonomous mobile robot": 0.0,
+          "low yellow robotic vehicle": 0.6391,
+          "yellow transport robot": 0.0836,
+          "flat yellow AGV": 0.0565
+        },
+        "selected": {
+          "max": {
+            "prompts": [
+              "yellow robot platform"
+            ],
+            "f1": 0.8103
+          },
+          "mean": {
+            "prompts": [
+              "yellow robot platform"
+            ],
+            "f1": 0.8103
+          }
+        },
+        "chosen_mode": "max"
+      },
+      "test": {
+        "current_prompt": {
+          "precision": 0.9714,
+          "recall": 0.8242,
+          "mean_iou_matched": 0.8992,
+          "tp": 136,
+          "fp": 4,
+          "n_gt": 165,
+          "ap50": 0.9642,
+          "f1": 0.8918,
+          "gate": {
+            "reject": 28,
+            "review": 49,
+            "auto_approve": 88
+          },
+          "false_alarm_images_on_loco": 0,
+          "n_negatives": 500
+        },
+        "ensemble": {
+          "precision": 0.9714,
+          "recall": 0.8242,
+          "mean_iou_matched": 0.8992,
+          "tp": 136,
+          "fp": 4,
+          "n_gt": 165,
+          "ap50": 0.9642,
+          "f1": 0.8918,
+          "gate": {
+            "reject": 28,
+            "review": 49,
+            "auto_approve": 88
+          },
+          "false_alarm_images_on_loco": 0,
+          "n_negatives": 500
+        }
+      }
+    }
+  }
+}
