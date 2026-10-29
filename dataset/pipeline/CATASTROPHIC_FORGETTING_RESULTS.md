@@ -411,12 +411,24 @@ como fundo)**, `results_loco_synthetic_mix_v1_no_pallet_labels.json`:
 O ganho vem da classe mais rara: forklift tem 438 caixas reais no treino, e
 o sintético adiciona 123.
 
-**v2 (com os rótulos de pallet)**: a primeira tentativa morreu em
-2026-10-26 14:31, na época 61 do seed 0, sem traceback (provável SIGKILL;
-`logs/loco_synthetic_mix_v2_killed.log`). Relançada em 2026-10-28 na sessão
-tmux `synthmix2`, retomando do `last.pt`, com 4 workers nos seeds novos e
-até 3 tentativas. Resultado em `results_loco_synthetic_mix.json` quando
-terminar.
+**v2 (com os rótulos de pallet, 70 caixas)**, `results_loco_synthetic_mix.json`:
+
+| classe | humano | humano + sintético | seeds com diferença significativa |
+|---|---|---|---|
+| SLC | .349 | .380 (+9%) | 2/3 melhor, 1 sem diferença |
+| forklift | .125 | **.221** (+77%) | 2/3 melhor, 1 sem diferença |
+| pallet | .616 | .622 (+1%) | 2/3 melhor, 1/3 pior (todos < 0.025) |
+| stillage | .421 | .463 (+10%) | **3/3 melhor** |
+| pallet_truck | .173 | .216 (+25%) | **3/3 melhor** |
+| **média** | .337 | **.380** (+12.8%) | |
+
+Com 202 imagens sintéticas (7% do treino), todas as classes melhoram ou
+empatam; nenhuma piora de forma consistente. A queda de SLC da v1 não se
+repete; não dá para separar quanto disso vem dos rótulos de pallet e quanto
+é variação entre seeds. A primeira tentativa da v2 morreu em 2026-10-26
+14:31 sem traceback (provável SIGKILL, `logs/loco_synthetic_mix_v2_killed.log`);
+a relançada retomou o seed 0 do `last.pt` (época 60) e terminou em
+2026-10-28 16:50. Épocas até o early stop: 118, 104, 100.
 
 ### Claude como anotador (teste parcial, 2026-10-28)
 
