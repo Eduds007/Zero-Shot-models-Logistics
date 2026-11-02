@@ -96,3 +96,5 @@ dataset/pipeline/fixed_testset/*/images/
 # raw robot recordings, backed up locally (too large for git)
 dataset/recordings_backup/
 dataset/pipeline/kuka_review_ablation/
+dataset/independent_test_raw/
+dataset/pipeline/independent_test/

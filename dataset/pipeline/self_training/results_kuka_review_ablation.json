@@ -1,0 +1,277 @@
+{
+  "arms": {
+    "human": {
+      "arm_frames": 116,
+      "manifest": {
+        "pipeline": {
+          "train": 152,
+          "val": 38
+        },
+        "loco": {
+          "train": 1520,
+          "val": 380
+        },
+        "copy_paste": 738,
+        "environment": 503,
+        "loco_train_pseudo": 920
+      }
+    },
+    "sam3": {
+      "arm_frames": 162,
+      "manifest": {
+        "pipeline": {
+          "train": 178,
+          "val": 45
+        },
+        "loco": {
+          "train": 1780,
+          "val": 450
+        },
+        "copy_paste": 867,
+        "environment": 503,
+        "loco_train_pseudo": 590
+      }
+    }
+  },
+  "runs": [
+    {
+      "arm": "human",
+      "seed": 0,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_human_s0/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.4071620908250295,
+        "forklift": 0.24473643691305233,
+        "pallet": 0.6446794977103093,
+        "stillage": 0.4749122747769501,
+        "pallet_truck": 0.26014055725632745,
+        "iw_hub": 0.537678027925903,
+        "robotic_arm": 0.5775330087524843
+      }
+    },
+    {
+      "arm": "human",
+      "seed": 1,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_human_s1/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.40430325920855725,
+        "forklift": 0.23689842722683427,
+        "pallet": 0.6425286146860701,
+        "stillage": 0.4721531069509527,
+        "pallet_truck": 0.24478023055635995,
+        "iw_hub": 0.5651423054806787,
+        "robotic_arm": 0.545093191753873
+      }
+    },
+    {
+      "arm": "human",
+      "seed": 2,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_human_s2/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.4087747333650222,
+        "forklift": 0.24299405954558584,
+        "pallet": 0.6440548722162336,
+        "stillage": 0.48058548532819456,
+        "pallet_truck": 0.2539529748181108,
+        "iw_hub": 0.5218795987102289,
+        "robotic_arm": 0.5031851335028009
+      }
+    },
+    {
+      "arm": "sam3",
+      "seed": 0,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_sam3_s0/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.39521621129847473,
+        "forklift": 0.2564728963986164,
+        "pallet": 0.6440180423602854,
+        "stillage": 0.4924583750213325,
+        "pallet_truck": 0.23287477153490174,
+        "iw_hub": 0.5834365179508348,
+        "robotic_arm": 0.5640309450928177
+      }
+    },
+    {
+      "arm": "sam3",
+      "seed": 1,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_sam3_s1/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.3938940407632659,
+        "forklift": 0.2390797004281954,
+        "pallet": 0.64306622755684,
+        "stillage": 0.49005408392596467,
+        "pallet_truck": 0.2420035783880843,
+        "iw_hub": 0.608810271408081,
+        "robotic_arm": 0.5473726467747435
+      }
+    },
+    {
+      "arm": "sam3",
+      "seed": 2,
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/ablation_review_sam3_s2/weights/last.pt",
+      "scores": {
+        "small_load_carrier": 0.3874110359093863,
+        "forklift": 0.22624010227938618,
+        "pallet": 0.6412492328417144,
+        "stillage": 0.4896494626092657,
+        "pallet_truck": 0.23382519378294697,
+        "iw_hub": 0.5834084822873308,
+        "robotic_arm": 0.5528021236678977
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "seed": 0,
+      "human": {
+        "small_load_carrier": 0.4071620908250295,
+        "forklift": 0.24473643691305233,
+        "pallet": 0.6446794977103093,
+        "stillage": 0.4749122747769501,
+        "pallet_truck": 0.26014055725632745,
+        "iw_hub": 0.537678027925903,
+        "robotic_arm": 0.5775330087524843
+      },
+      "sam3": {
+        "small_load_carrier": 0.39521621129847473,
+        "forklift": 0.2564728963986164,
+        "pallet": 0.6440180423602854,
+        "stillage": 0.4924583750213325,
+        "pallet_truck": 0.23287477153490174,
+        "iw_hub": 0.5834365179508348,
+        "robotic_arm": 0.5640309450928177
+      },
+      "ci_sam3_minus_human": {
+        "small_load_carrier": [
+          -0.017611864071739727,
+          -0.006209292241938186
+        ],
+        "forklift": [
+          -0.025092876261604023,
+          0.05182492872955771
+        ],
+        "pallet": [
+          -0.0020170310690671516,
+          0.0021519317682554763
+        ],
+        "stillage": [
+          0.007168814773215015,
+          0.027620653644289256
+        ],
+        "pallet_truck": [
+          -0.045402171996742596,
+          -0.013337506414758123
+        ],
+        "iw_hub": [
+          -0.0035401143752564804,
+          0.098760191939512
+        ],
+        "robotic_arm": [
+          -0.0634339616323067,
+          0.0319011825907858
+        ]
+      }
+    },
+    {
+      "seed": 1,
+      "human": {
+        "small_load_carrier": 0.40430325920855725,
+        "forklift": 0.23689842722683427,
+        "pallet": 0.6425286146860701,
+        "stillage": 0.4721531069509527,
+        "pallet_truck": 0.24478023055635995,
+        "iw_hub": 0.5651423054806787,
+        "robotic_arm": 0.545093191753873
+      },
+      "sam3": {
+        "small_load_carrier": 0.3938940407632659,
+        "forklift": 0.2390797004281954,
+        "pallet": 0.64306622755684,
+        "stillage": 0.49005408392596467,
+        "pallet_truck": 0.2420035783880843,
+        "iw_hub": 0.608810271408081,
+        "robotic_arm": 0.5473726467747435
+      },
+      "ci_sam3_minus_human": {
+        "small_load_carrier": [
+          -0.01579933770982397,
+          -0.004921992915002689
+        ],
+        "forklift": [
+          -0.03742145934666446,
+          0.033755599550657836
+        ],
+        "pallet": [
+          -0.001041820384090136,
+          0.0033594324955051533
+        ],
+        "stillage": [
+          0.008185359654149828,
+          0.027289566513138498
+        ],
+        "pallet_truck": [
+          -0.017546631709452032,
+          0.01242060162454461
+        ],
+        "iw_hub": [
+          -0.00038383848024765746,
+          0.09023434212737137
+        ],
+        "robotic_arm": [
+          -0.06685870268736795,
+          0.07268135922920096
+        ]
+      }
+    },
+    {
+      "seed": 2,
+      "human": {
+        "small_load_carrier": 0.4087747333650222,
+        "forklift": 0.24299405954558584,
+        "pallet": 0.6440548722162336,
+        "stillage": 0.48058548532819456,
+        "pallet_truck": 0.2539529748181108,
+        "iw_hub": 0.5218795987102289,
+        "robotic_arm": 0.5031851335028009
+      },
+      "sam3": {
+        "small_load_carrier": 0.3874110359093863,
+        "forklift": 0.22624010227938618,
+        "pallet": 0.6412492328417144,
+        "stillage": 0.4896494626092657,
+        "pallet_truck": 0.23382519378294697,
+        "iw_hub": 0.5834084822873308,
+        "robotic_arm": 0.5528021236678977
+      },
+      "ci_sam3_minus_human": {
+        "small_load_carrier": [
+          -0.027380774303588026,
+          -0.015234789487374722
+        ],
+        "forklift": [
+          -0.05245084711691144,
+          0.011005388770998596
+        ],
+        "pallet": [
+          -0.005816107095698194,
+          -0.0012103891139396835
+        ],
+        "stillage": [
+          0.000705667548007052,
+          0.01831490815001124
+        ],
+        "pallet_truck": [
+          -0.036469312799444674,
+          -0.0035502718063598437
+        ],
+        "iw_hub": [
+          0.021996981092721107,
+          0.10872758676615689
+        ],
+        "robotic_arm": [
+          -0.015543861690702024,
+          0.10528353633945144
+        ]
+      }
+    }
+  ]
+}

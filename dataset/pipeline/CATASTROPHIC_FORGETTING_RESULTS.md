@@ -509,6 +509,44 @@ o seed 0 passa em pallet_truck por margem mínima (limite superior do IC
 −0.0097 contra −0.010). O braço chega a .52–.56, contra .305 no
 experimento offline de outubro.
 
+Implantação: às 13:43 o `model_sync_node` do robô puxou o modelo e o
+`inference_node` recarregou com 7 classes, sem reiniciar (a chamada de
+reload deu timeout nos 15 s do `model_sync_node`, mas o recarregamento
+levou ~15.5 s na GTX 1060 e funcionou). Demonstração ao vivo gravada pelo
+autor em seguida (inferência a 2 Hz no robô).
+
+iw_hub separado por conjunto de teste (modelo promovido): 30 frames do
+laboratório (mesma sessão do treino, não independentes) AP50 .968; 50
+imagens do Roboflow (independentes) AP50 .277. O número independente do
+iw_hub é o do Roboflow. Uma gravação nova (02/11 14:42–15:00, 391 frames, 88
+após tirar duplicatas, capturada fora do pipeline) ficou guardada sem
+rótulos em `dataset/independent_test_raw/20261102`.
+
+### Com vs sem revisão humana na classe nova (`kuka_review_ablation.py`)
+
+A mesma rodada do braço treinada duas vezes, numa cópia do banco, tudo
+igual menos os frames do braço: **com revisão** = os 116 aprovados pelo
+humano (107 após tirar imagens de teste); **sem revisão** = todos os 162
+que o SAM3 passou (inclui os 46 rejeitados). Mesmas caixas do SAM3 nos
+dois (a revisão só filtra frames). 3 seeds cada.
+
+| classe | com revisão | sem revisão | seeds com diferença significativa |
+|---|---|---|---|
+| SLC | .407 | .392 | 3/3 sem revisão pior (−.006 a −.027) |
+| forklift | .242 | .241 | 0/3 |
+| pallet | .644 | .643 | 1/3 (−.001 a −.006) |
+| stillage | .476 | .491 | 3/3 sem revisão melhor (+.001 a +.028) |
+| pallet_truck | .253 | .236 | 2/3 sem revisão pior |
+| iw_hub | .542 | .592 | 1/3 sem revisão melhor |
+| **robotic_arm** | **.542** | **.555** | **0/3** |
+| média LOCO | .404 | .401 | |
+
+No braço, a revisão humana não fez diferença mensurável: sem revisão o AP
+fica igual (IC cruza 0 nos 3 seeds), com 34 frames a mais. Nas classes
+antigas há pequenas trocas nos dois sentidos (SLC e pallet_truck pioram,
+stillage melhora). Ressalva: a revisão aqui só aprova/rejeita frames, não
+corrige caixas; o teste do braço tem 84 imagens.
+
 ### Situação dos itens da tese (2026-11-02)
 
 1. Demonstração do ciclo completo: em andamento (seção acima).
