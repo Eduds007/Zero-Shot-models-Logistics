@@ -41,7 +41,8 @@ images -- the recipe that lost the least LOCO AP over 3 seeds
     class_registry.json pseudo_label_source (SAM3 boxes cached in
     loco_oracle/sam3, or the production model).
 
-Robot frames from a class's test_capture_days never enter a batch.
+Robot frames from a class's test_capture_days, and any class's fixed test
+images, never enter a batch.
 
 The val split never touches the LOCO val set: promote_if_better.py scores
 on it, so using it here to pick best.pt / early-stop leaks the test into
@@ -131,18 +132,27 @@ def _ts_key(name):
     return os.path.splitext(os.path.basename(name))[0].split("_")[-1]
 
 
+def pipeline_test_files(registry=None):
+    """File names of every pipeline class's fixed test images -- a capture
+    in one class's test set stays out of training for every class (the
+    same frame can be approved for another class, e.g. an iw_hub test
+    frame that also shows the robot arm)."""
+    test_files = set()
+    for cls in db.pipeline_classes(registry):
+        for rel in cls.get("test_sets", []):
+            d = os.path.join(db.PROJECT_ROOT, rel, "images")
+            if os.path.isdir(d):
+                test_files.update(os.listdir(d))
+    return test_files
+
+
 def assert_no_test_leak(batch_dir):
     """Raises if any train/val image is a LOCO val image, comes from a LOCO
     val warehouse, is one of a pipeline class's fixed test images, or is a
     robot frame from a held-out capture day."""
     with open(LOCO_VAL_PATHS) as f:
         test_keys = {_ts_key(line.strip()) for line in f if line.strip()}
-    test_files = set()
-    for cls in db.pipeline_classes():
-        for rel in cls.get("test_sets", []):
-            d = os.path.join(db.PROJECT_ROOT, rel, "images")
-            if os.path.isdir(d):
-                test_files.update(os.listdir(d))
+    test_files = pipeline_test_files()
     held_days = db.held_out_capture_days()
     for split in ("train", "val"):
         d = os.path.join(batch_dir, "images", split)
@@ -231,6 +241,9 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
         raise SystemExit("no source=pipeline classes in class_registry.json -- nothing to fine-tune on")
     loco_class_indices = {c["class_idx"] for c in db.loco_classes(registry)}
     held_days = db.held_out_capture_days(registry)
+    test_files = pipeline_test_files(registry)
+    trainable = lambda path: (os.path.exists(path) and db.capture_day(path) not in held_days
+                              and os.path.basename(path) not in test_files)
     approved_by_capture = db.approved_labels_by_capture(conn)
 
     batch_dir = os.path.join(BATCH_ROOT, batch_name)
@@ -245,8 +258,7 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
     classes_in_train = []
     for cls in pipeline_classes:
         pool = db.approved_pool(conn, cls["name"])
-        pool = [(row_id, path) for row_id, path in pool
-                if os.path.exists(path) and db.capture_day(path) not in held_days]
+        pool = [(row_id, path) for row_id, path in pool if trainable(path)]
         random.shuffle(pool)
         sample = pool[:replay_cap]
         n_val = max(1, round(len(sample) * VAL_FRACTION)) if len(sample) > 1 else 0
@@ -302,8 +314,7 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
                                for name in classes_in_train)
 
     # --- environment frames: the robot's surroundings, LOCO classes from production
-    env = [p for p in db.environment_frames(conn, registry)
-           if os.path.exists(p) and db.capture_day(p) not in held_days]
+    env = [p for p in db.environment_frames(conn, registry) if trainable(p)]
     random.shuffle(env)
     env = env[:env_frames_cap]
     teacher = pseudo_labels.production_boxes(env, loco_class_indices)
