@@ -473,7 +473,41 @@ iw_hub, 172 frames (120 nítidos no trecho em movimento; 87 descartados por
 blur). Cópias: `dataset/incoming/fml-22/capture_20261102_*`,
 `dataset/recordings_backup/capture_20261102.tar` (workstation) e
 `~/Desktop/robot_recordings/` (fml-22). `robotic_arm` entrou no registry às
-10:53; o ciclo das 11:00 ingere os 1082 frames para a classe nova.
+10:53; o ciclo das 11:00 ingeriu os 1082 frames para a classe nova.
+
+SAM3 ("robotic arm", 0.5): 220 frames passaram, 1 aprovado automaticamente
+(confiança média do braço 0.50–0.86, quase nunca acima de 0.85). Da
+gravação de 02/11 só 20 frames tinham o braço segundo o SAM3, e nenhum o
+iw_hub. Os 74 frames de 05/10 na fila foram marcados `held_out_test`.
+Revisão humana: 116 aprovados, 46 rejeitados (72% de aprovação); feita no
+Lichtblick e, para acelerar, por folhas de miniaturas numeradas, aplicadas
+na fila do robô do mesmo jeito que os botões (`~/Desktop/revisao_braco/`).
+
+Primeira tentativa da rodada (12:24) barrada pelo leak check: 9 frames
+aprovados para o braço eram imagens do teste de iw_hub (mesmos frames de
+17/09). Corrigido: imagem de teste de qualquer classe nunca entra no treino.
+
+Rodada `pipeline_finetune_20261102_122735` (receita g, 3 seeds). Lote: 190
+frames do robô (83 iw_hub + 107 braço), replay LOCO 1520/380, copy-paste
+738, ambiente 503, LOCO train com pseudo-rótulos 920 (menos que os 1259 da
+baseline g, porque o replay humano cresce com o número de frames do robô).
+
+| classe | produção | seed 0 (promovido) | seed 1 | seed 2 |
+|---|---|---|---|---|
+| SLC | .385 | .408 [+.019, +.029] | .403 | .410 |
+| forklift | .262 | .225 [−.078, +.010] | .213 | .236 |
+| pallet | .632 | .644 [+.008, +.014] | .641 | .644 |
+| stillage | .496 | .479 [−.029, −.006] | .470 (reprova, [−.037, −.015]) | .481 |
+| pallet_truck | .278 | .251 [−.044, −.0097] | .261 | .259 |
+| iw_hub | — | .549 | .550 | .535 |
+| robotic_arm | — | .562 | .524 | .520 |
+| média LOCO | .411 | .401 (−2.4%) | .394 | .404 |
+
+**Gate: 2/3 seeds passam; o seed 0 foi promovido para a produção em
+2026-11-02 13:21** (primeira promoção desde o bootstrap do LOCO). Ressalva:
+o seed 0 passa em pallet_truck por margem mínima (limite superior do IC
+−0.0097 contra −0.010). O braço chega a .52–.56, contra .305 no
+experimento offline de outubro.
 
 ### Situação dos itens da tese (2026-11-02)
 

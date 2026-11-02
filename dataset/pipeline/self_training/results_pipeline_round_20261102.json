@@ -1,0 +1,86 @@
+{
+  "run_name": "pipeline_finetune_20261102_122735",
+  "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/pipeline_finetune_20261102_122735_s0/weights/last.pt",
+  "promoted_at": "2026-11-02T13:21:34",
+  "classes": [
+    "small_load_carrier",
+    "forklift",
+    "pallet",
+    "stillage",
+    "pallet_truck",
+    "iw_hub",
+    "robotic_arm"
+  ],
+  "ap50_by_class": {
+    "small_load_carrier": 0.40831625863117277,
+    "forklift": 0.22490174556999104,
+    "pallet": 0.6437325364326526,
+    "stillage": 0.4792640906558456,
+    "pallet_truck": 0.2507558310792829,
+    "iw_hub": 0.5489636559055382,
+    "robotic_arm": 0.5617249292702211
+  },
+  "ap50_diff_ci95_vs_previous": {
+    "small_load_carrier": [
+      0.018622122099131312,
+      0.028933351240166005
+    ],
+    "forklift": [
+      -0.07755396809234721,
+      0.00999781412708405
+    ],
+    "pallet": [
+      0.008492554099798244,
+      0.013613485969910227
+    ],
+    "stillage": [
+      -0.0286725662572786,
+      -0.0060853365453300045
+    ],
+    "pallet_truck": [
+      -0.04356908245453088,
+      -0.009699540555704383
+    ]
+  },
+  "candidates": [
+    {
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/pipeline_finetune_20261102_122735_s0/weights/last.pt",
+      "passed": true,
+      "ap50_by_class": {
+        "small_load_carrier": 0.40831625863117277,
+        "forklift": 0.22490174556999104,
+        "pallet": 0.6437325364326526,
+        "stillage": 0.4792640906558456,
+        "pallet_truck": 0.2507558310792829,
+        "iw_hub": 0.5489636559055382,
+        "robotic_arm": 0.5617249292702211
+      }
+    },
+    {
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/pipeline_finetune_20261102_122735_s1/weights/last.pt",
+      "passed": false,
+      "ap50_by_class": {
+        "small_load_carrier": 0.4032883413696408,
+        "forklift": 0.21304223048106793,
+        "pallet": 0.6414309170169731,
+        "stillage": 0.47044563496254305,
+        "pallet_truck": 0.26075402826421495,
+        "iw_hub": 0.5495004477122437,
+        "robotic_arm": 0.5243366771857539
+      }
+    },
+    {
+      "weights": "/home/go39sin/Desktop/Zero-Shot-models-Logistics/runs/detect/yolo_runs/pipeline_finetune_20261102_122735_s2/weights/last.pt",
+      "passed": true,
+      "ap50_by_class": {
+        "small_load_carrier": 0.40994807484889845,
+        "forklift": 0.23629011402015312,
+        "pallet": 0.6437802562458121,
+        "stillage": 0.4811015717064157,
+        "pallet_truck": 0.25876585384099543,
+        "iw_hub": 0.5353728667629243,
+        "robotic_arm": 0.5198622189536996
+      }
+    }
+  ]
+}
