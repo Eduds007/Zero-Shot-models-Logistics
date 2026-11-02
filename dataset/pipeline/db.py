@@ -125,6 +125,33 @@ def approved_pool(conn, class_name):
     ).fetchall()
 
 
+def approved_labels_by_capture(conn):
+    """{captured_at: [local_path of every row approved for that capture]} --
+    one image can be approved for several pipeline classes, each row holding
+    only its own class's boxes, so build_training_batch.py merges them."""
+    out = {}
+    for captured_at, path in conn.execute(
+        "SELECT captured_at, local_path FROM frames WHERE review_status = 'approved' ORDER BY id"
+    ):
+        out.setdefault(captured_at, []).append(path)
+    return out
+
+
+def held_out_capture_days(registry=None):
+    """Capture days (YYYYMMDD) a pipeline class draws its fixed test frames
+    from ("test_capture_days" in class_registry.json): every frame of those
+    days stays out of training, not just the test frames, since frames a
+    few seconds apart in one session are near-duplicates."""
+    return {d for c in pipeline_classes(registry) for d in c.get("test_capture_days", [])}
+
+
+def capture_day(path):
+    """'.../capture_20261005_112454_111545.jpg' -> '20261005' (None for a
+    name not in capture_node.py's format)."""
+    parts = os.path.basename(path).split("_")
+    return parts[1] if len(parts) > 2 and parts[0] == "capture" else None
+
+
 def environment_frames(conn, registry=None):
     """Captured images SAM3 rejected for EVERY pipeline class -- frames of
     the robot's own surroundings with (per SAM3) none of the pipeline

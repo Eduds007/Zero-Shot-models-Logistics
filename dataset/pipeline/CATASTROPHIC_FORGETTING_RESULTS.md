@@ -451,10 +451,33 @@ testados em agosto (`dataset/results/loco_eval_results_zeroshot.csv`):
 Grounding DINO tiny ~.06, MM-Grounding-DINO large ~.01, OWLv2 ~.14, SAM3
 .30 no val completo.
 
-### Situação dos itens da tese (2026-10-28)
+### Item 1: ciclo completo no robô (iniciado em 2026-11-02)
 
-1. Demonstração do ciclo completo: pendente, depende da escolha entre
-   modelo único (g) e dois modelos.
+Decisões do autor: classe nova = braço KUKA (`robotic_arm`) no registry
+real; receita g no pipeline; gate real, e a troca de modelo no robô
+mostrada à parte (promoção manual rotulada como demonstração, depois
+volta à produção).
+
+Mudanças no pipeline (`build_training_batch.py`, `db.py`):
+- receita g: o resto do LOCO train com pseudo-rótulos substitui o banco de
+  5000 imagens. Com todo o LOCO train em cache no SAM3, o lote tem 1990
+  dessas imagens (a baseline g avaliada tinha 1259);
+- cada frame leva as caixas de todas as classes para as quais foi aprovado
+  (antes, o braço num frame de iw_hub virava fundo);
+- `test_capture_days` no registry: todos os frames de 05/10 (dia do teste
+  do braço) ficam fora do treino; o leak check agora reconhece frames
+  `env_`.
+
+Gravação nova: 2026-11-02 10:45–10:52, teleoperação perto do braço e do
+iw_hub, 172 frames (120 nítidos no trecho em movimento; 87 descartados por
+blur). Cópias: `dataset/incoming/fml-22/capture_20261102_*`,
+`dataset/recordings_backup/capture_20261102.tar` (workstation) e
+`~/Desktop/robot_recordings/` (fml-22). `robotic_arm` entrou no registry às
+10:53; o ciclo das 11:00 ingere os 1082 frames para a classe nova.
+
+### Situação dos itens da tese (2026-11-02)
+
+1. Demonstração do ciclo completo: em andamento (seção acima).
 2. Teste independente do iw_hub: pela metade (falta gravação independente
    ou separar os frames de 05/10); em espera por decisão do autor.
 3. Baselines: feito.

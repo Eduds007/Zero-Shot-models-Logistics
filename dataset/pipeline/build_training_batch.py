@@ -28,14 +28,20 @@ idea already validated in build_mixed_robot_dataset.py, generalized from
 
 On top of that, every class the image isn't human-annotated for is
 pseudo-labeled (pseudo_labels.py), and the batch gets more in-domain
-images -- the recipe that lost the least LOCO AP over 3 seeds (hybrid,
-CATASTROPHIC_FORGETTING_RESULTS.md):
-  - approved pipeline-class frames: LOCO classes from the production model;
+images -- the recipe that lost the least LOCO AP over 3 seeds
+(g_loco_train_pseudo in baselines.py, CATASTROPHIC_FORGETTING_RESULTS.md):
+  - approved pipeline-class frames: the boxes of every pipeline class the
+    capture was approved for (one row per class holds only its own class),
+    LOCO classes from the production model;
   - copy-paste augmentation of each pipeline class onto LOCO replay images;
   - up to ENV_FRAMES_CAP environment frames (captured frames SAM3 rejected
     for every pipeline class): LOCO classes from the production model;
-  - the LOCO bank: ~5000 unannotated LOCO images from the train warehouses,
-    each LOCO class labeled by its class_registry.json pseudo_label_source.
+  - the LOCO train images not used as replay or val, with pseudo-labels
+    instead of their human labels: each LOCO class from its
+    class_registry.json pseudo_label_source (SAM3 boxes cached in
+    loco_oracle/sam3, or the production model).
+
+Robot frames from a class's test_capture_days never enter a batch.
 
 The val split never touches the LOCO val set: promote_if_better.py scores
 on it, so using it here to pick best.pt / early-stop leaks the test into
@@ -84,6 +90,7 @@ ENV_FRAMES_CAP = 1000
 COPY_PASTE_PER_SOURCE = 3
 LOCO_TEST_SUBSETS = {"1", "4"}  # the official LOCO val warehouses
 LOCO_VAL_PATHS = os.path.join(db.DATASET_ROOT, "loco_val_paths.txt")
+LOCO_SAM3_LABELS = os.path.join(db.DATASET_ROOT, "loco_oracle", "sam3", "labels")
 
 
 def _symlink_pair(src_img, dst_img, dst_lbl, src_lbl=None):
@@ -126,7 +133,8 @@ def _ts_key(name):
 
 def assert_no_test_leak(batch_dir):
     """Raises if any train/val image is a LOCO val image, comes from a LOCO
-    val warehouse, or is one of a pipeline class's fixed test images."""
+    val warehouse, is one of a pipeline class's fixed test images, or is a
+    robot frame from a held-out capture day."""
     with open(LOCO_VAL_PATHS) as f:
         test_keys = {_ts_key(line.strip()) for line in f if line.strip()}
     test_files = set()
@@ -135,13 +143,16 @@ def assert_no_test_leak(batch_dir):
             d = os.path.join(db.PROJECT_ROOT, rel, "images")
             if os.path.isdir(d):
                 test_files.update(os.listdir(d))
+    held_days = db.held_out_capture_days()
     for split in ("train", "val"):
         d = os.path.join(batch_dir, "images", split)
         for f in os.listdir(d):
+            name = f.removeprefix("env_")  # environment frames are written as env_<capture>.jpg
             m = re.search(r"subset-(\d)", os.path.realpath(os.path.join(d, f))) or re.search(r"subset-(\d)", f)
-            if _ts_key(f) in test_keys or f in test_files or (m and m.group(1) in LOCO_TEST_SUBSETS):
+            if (_ts_key(f) in test_keys or name in test_files or (m and m.group(1) in LOCO_TEST_SUBSETS)
+                    or db.capture_day(name) in held_days):
                 raise RuntimeError(f"test image leaked into {split}: {f}")
-    print("leak check passed: no LOCO-val warehouse / pipeline test image in train or val")
+    print("leak check passed: no LOCO-val warehouse / pipeline test image / held-out capture day in train or val")
 
 
 def _write_pseudo_labeled(batch_dir, img_path, stem, boxes, split="train"):
@@ -188,9 +199,30 @@ def _stratified_loco_sample(loco_img_dir, loco_lbl_dir, loco_all, target_count, 
     return selected
 
 
+def _add_loco_train_pseudo(batch_dir, registry, loco_used):
+    """Every LOCO train image not already in the batch (and with cached SAM3
+    labels), labeled per class by its pseudo_label_source instead of by
+    LOCO's human labels -- the old model's view of the old classes, which
+    preserves them better than the human labels do (oracle_annotator.py)."""
+    sources = {c["class_idx"]: c.get("pseudo_label_source", "production") for c in db.loco_classes(registry)}
+    from_sam3 = {c for c, s in sources.items() if s == "sam3"}
+    from_prod = {c for c, s in sources.items() if s == "production"}
+    img_dir = os.path.join(LOCO_SRC, "images", "train")
+    rest = [f for f in sorted(os.listdir(img_dir)) if f.endswith(".jpg") and f not in loco_used and
+            os.path.exists(os.path.join(LOCO_SAM3_LABELS, f"lunann_train_{os.path.splitext(f)[0]}.txt"))]
+    paths = [os.path.join(img_dir, f) for f in rest]
+    prod = pseudo_labels.production_boxes(paths, from_prod)
+    for f, path in zip(rest, paths):
+        stem = os.path.splitext(f)[0]
+        sam3 = [b for b in copy_paste_augment._read_yolo_labels(
+            os.path.join(LOCO_SAM3_LABELS, f"lunann_train_{stem}.txt")) if b[0] in from_sam3]
+        _write_pseudo_labeled(batch_dir, path, stem, sam3 + prod[path])
+    return len(rest)
+
+
 def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=LOCO_RATIO, seed=SEED,
                  min_images_per_loco_class=MIN_IMAGES_PER_LOCO_CLASS, env_frames_cap=ENV_FRAMES_CAP,
-                 use_loco_bank=True):
+                 use_loco_train_pseudo=True):
     random.seed(seed)
     conn = db.connect()
     registry = db.load_class_registry()
@@ -198,6 +230,8 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
     if not pipeline_classes:
         raise SystemExit("no source=pipeline classes in class_registry.json -- nothing to fine-tune on")
     loco_class_indices = {c["class_idx"] for c in db.loco_classes(registry)}
+    held_days = db.held_out_capture_days(registry)
+    approved_by_capture = db.approved_labels_by_capture(conn)
 
     batch_dir = os.path.join(BATCH_ROOT, batch_name)
     counts = {"pipeline": {"train": 0, "val": 0}, "loco": {"train": 0, "val": 0}}
@@ -211,7 +245,8 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
     classes_in_train = []
     for cls in pipeline_classes:
         pool = db.approved_pool(conn, cls["name"])
-        pool = [(row_id, path) for row_id, path in pool if os.path.exists(path)]
+        pool = [(row_id, path) for row_id, path in pool
+                if os.path.exists(path) and db.capture_day(path) not in held_days]
         random.shuffle(pool)
         sample = pool[:replay_cap]
         n_val = max(1, round(len(sample) * VAL_FRACTION)) if len(sample) > 1 else 0
@@ -256,7 +291,10 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
     teacher = pseudo_labels.production_boxes([p for _s, p in approved], loco_class_indices)
     for split, path in approved:
         stem = os.path.splitext(os.path.basename(path))[0]
-        human = copy_paste_augment._read_yolo_labels(_label_path_for(path))
+        # every pipeline class this capture was approved for, not just the row's own class --
+        # otherwise e.g. a robot arm in an iw_hub frame would be trained as background
+        human = [b for p in approved_by_capture.get(stem, [path])
+                 for b in copy_paste_augment._read_yolo_labels(_label_path_for(p))]
         _write_pseudo_labeled(batch_dir, path, stem, pseudo_labels.add_without_overlap(human, teacher[path]), split)
 
     # --- copy-paste each pipeline class onto LOCO replay backgrounds
@@ -264,7 +302,8 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
                                for name in classes_in_train)
 
     # --- environment frames: the robot's surroundings, LOCO classes from production
-    env = [p for p in db.environment_frames(conn, registry) if os.path.exists(p)]
+    env = [p for p in db.environment_frames(conn, registry)
+           if os.path.exists(p) and db.capture_day(p) not in held_days]
     random.shuffle(env)
     env = env[:env_frames_cap]
     teacher = pseudo_labels.production_boxes(env, loco_class_indices)
@@ -272,11 +311,8 @@ def build_batch(batch_name, replay_cap=REPLAY_BUFFER_SIZE_PER_CLASS, loco_ratio=
         _write_pseudo_labeled(batch_dir, path, "env_" + os.path.splitext(os.path.basename(path))[0], teacher[path])
     counts["environment"] = len(env)
 
-    # --- LOCO bank: unannotated LOCO (train warehouses), hybrid pseudo-labels
-    bank = pseudo_labels.loco_bank(registry) if use_loco_bank else []
-    for path, stem, boxes in bank:
-        _write_pseudo_labeled(batch_dir, path, stem, boxes)
-    counts["loco_bank"] = len(bank)
+    # --- the rest of LOCO train, pseudo-labeled instead of human-labeled
+    counts["loco_train_pseudo"] = _add_loco_train_pseudo(batch_dir, registry, loco_used) if use_loco_train_pseudo else 0
 
     assert_no_test_leak(batch_dir)
     incorporated = conn.execute(
@@ -324,11 +360,12 @@ def main():
                               "classes (forklift, pallet_truck) from being crowded out by random "
                               "sampling (default 40; val split gets this scaled by VAL_FRACTION)")
     parser.add_argument("--env-frames-cap", type=int, default=ENV_FRAMES_CAP)
-    parser.add_argument("--no-loco-bank", action="store_true", help="skip the pseudo-labeled unannotated LOCO images")
+    parser.add_argument("--no-loco-train-pseudo", action="store_true",
+                         help="skip the pseudo-labeled rest of LOCO train")
     args = parser.parse_args()
     build_batch(args.batch_name, replay_cap=args.replay_cap, loco_ratio=args.loco_ratio,
                 min_images_per_loco_class=args.min_images_per_loco_class, env_frames_cap=args.env_frames_cap,
-                use_loco_bank=not args.no_loco_bank)
+                use_loco_train_pseudo=not args.no_loco_train_pseudo)
 
 
 if __name__ == "__main__":

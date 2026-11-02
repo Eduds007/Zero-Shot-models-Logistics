@@ -13,6 +13,15 @@
       "replay_dir": "dataset/pipeline/approved_pending_training/iw_hub",
       "held_out_val": "dataset/pipeline/held_out_val/iw_hub",
       "test_sets": ["dataset/pipeline/fixed_testset/iw_hub", "dataset/pipeline/fixed_testset/iw_hub_roboflow"]
+    },
+    {
+      "name": "robotic_arm",
+      "class_idx": 6,
+      "source": "pipeline",
+      "prompt": "robotic arm",
+      "replay_dir": "dataset/pipeline/approved_pending_training/robotic_arm",
+      "test_sets": ["dataset/pipeline/fixed_testset/robotic_arm"],
+      "test_capture_days": ["20261005"]
     }
   ]
 }

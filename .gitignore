@@ -92,3 +92,6 @@ dataset/pipeline/yolov8m.pt
 # fixed test sets: images stay local; the hand-corrected KUKA labels are kept
 dataset/pipeline/fixed_testset/*/images/
 !dataset/pipeline/fixed_testset/robotic_arm/labels/*.txt
+
+# raw robot recordings, backed up locally (too large for git)
+dataset/recordings_backup/
