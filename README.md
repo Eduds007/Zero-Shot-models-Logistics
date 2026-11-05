@@ -62,18 +62,30 @@ SAM3: a revisão só aprovou ou rejeitou frames, não corrigiu caixas.
 - No braço, as diferenças ficam dentro do ruído. A mesma configuração com
   revisão, treinada duas vezes, variou até ±.02 por seed (rodada real .562 /
   .524 / .520; repetição .578 / .545 / .503).
-- **Gate** (contra o modelo antigo): sem revisão, **0 de 3** seeds passam, os
-  três reprovados em pallet_truck (.233 / .242 / .234 contra .278). Com
-  revisão, **3 de 6**: 2 de 3 na rodada real e 1 de 3 na repetição, com
-  reprovações em stillage e pallet_truck.
-- O resultado do gate muda entre repetições da mesma configuração (2 de 3
-  contra 1 de 3). A diferença 3 de 6 contra 0 de 3 aponta a favor da revisão,
-  mas a amostra é pequena, e a causa da queda em pallet_truck não foi isolada.
 - As 84 imagens de teste do braço foram pré-selecionadas pelo SAM3 e não
   incluem imagens sem o braço. Isso pode favorecer o treino sem revisão e
   superestimar o AP nos dois casos.
 - Os dois braços diferem em qualidade e em quantidade de frames (107 contra
   140).
+
+### Resultado do gate com e sem revisão
+
+Cada modelo comparado com o modelo LOCO original.
+
+| configuração | seeds aprovados | motivo das reprovações |
+|---|---:|---|
+| **sem revisão** | **0 de 3** | pallet_truck nos três (.233 / .242 / .234, contra .278) |
+| com revisão, rodada real | 2 de 3 | stillage |
+| com revisão, repetição | 1 de 3 | stillage nos dois; pallet_truck em um deles |
+
+- Na classe nova, a revisão não ajudou: o braço fica em .542 com revisão e
+  .555 sem.
+- Nas classes antigas, ela pode ajudar: nenhum modelo sem revisão passou no
+  gate, contra 3 de 6 com revisão.
+- A amostra é pequena, e os dois lados também diferem no número de frames (107
+  contra 140). A causa da queda em pallet_truck não foi isolada.
+- A mesma configuração deu 2 de 3 numa rodada e 1 de 3 na outra: a aprovação no
+  gate varia entre repetições.
 
 ### Rodada real do pipeline (02/11)
 
