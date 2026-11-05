@@ -501,7 +501,7 @@ baseline g, porque o replay humano cresce com o número de frames do robô).
 | pallet_truck | .278 | .251 [−.044, −.0097] | .261 | .259 |
 | iw_hub | — | .549 | .550 | .535 |
 | robotic_arm | — | .562 | .524 | .520 |
-| média LOCO | .411 | .401 (−2.4%) | .394 | .404 |
+| média LOCO | .411 | .401 (−2.4%) | .398 | .406 |
 
 **Gate: 2/3 seeds passam; o seed 0 foi promovido para a produção em
 2026-11-02 13:21** (primeira promoção desde o bootstrap do LOCO). Ressalva:
@@ -527,7 +527,8 @@ rótulos em `dataset/independent_test_raw/20261102`.
 A mesma rodada do braço treinada duas vezes, numa cópia do banco, tudo
 igual menos os frames do braço: **com revisão** = os 116 aprovados pelo
 humano (107 após tirar imagens de teste); **sem revisão** = todos os 162
-que o SAM3 passou (inclui os 46 rejeitados). Mesmas caixas do SAM3 nos
+que o SAM3 passou (140 após tirar imagens de teste; inclui 33 dos 46
+rejeitados). Mesmas caixas do SAM3 nos
 dois (a revisão só filtra frames). 3 seeds cada.
 
 | classe | com revisão | sem revisão | seeds com diferença significativa |
@@ -541,11 +542,20 @@ dois (a revisão só filtra frames). 3 seeds cada.
 | **robotic_arm** | **.542** | **.555** | **0/3** |
 | média LOCO | .404 | .401 | |
 
+Gate contra o modelo LOCO original (`results_kuka_review_ablation_gate.json`):
+sem revisão 0/3 seeds passam, todos por pallet_truck (.233 / .242 / .234, IC
+inteiro abaixo de −0.01); com revisão, na repetição, 1/3 (seed 0 reprova em
+stillage, seed 1 em stillage e pallet_truck), além dos 2/3 da rodada real, ou
+seja 3/6. O resultado do gate muda entre repetições da mesma configuração.
+
 No braço, a revisão humana não fez diferença mensurável: sem revisão o AP
-fica igual (IC cruza 0 nos 3 seeds), com 34 frames a mais. Nas classes
+fica igual (IC cruza 0 nos 3 seeds), com 33 frames a mais. Nas classes
 antigas há pequenas trocas nos dois sentidos (SLC e pallet_truck pioram,
 stillage melhora). Ressalva: a revisão aqui só aprova/rejeita frames, não
-corrige caixas; o teste do braço tem 84 imagens.
+corrige caixas; o teste do braço tem 84 imagens, pré-selecionadas pelo
+SAM3 (melhor caixa >= 0.3) e sem negativos, o que pode favorecer o braço
+sem revisão. A mesma configuração com revisão, repetida (rodada real vs
+ablação), varia até ±.02 no braço por seed.
 
 ### Situação dos itens da tese (2026-11-02)
 

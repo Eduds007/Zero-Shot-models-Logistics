@@ -1,0 +1,235 @@
+[
+  {
+    "arm": "human",
+    "seed": 0,
+    "passed": false,
+    "failures": [
+      "stillage: candidate AP_50=0.475 vs production 0.496, 95% CI of the difference [-0.033, -0.011] entirely below -0.01 (demonstrably regresses this class)"
+    ],
+    "scores": {
+      "small_load_carrier": 0.4071620908250295,
+      "forklift": 0.24473643691305233,
+      "pallet": 0.6446794977103093,
+      "stillage": 0.4749122747769501,
+      "pallet_truck": 0.26014055725632745,
+      "iw_hub": 0.537678027925903,
+      "robotic_arm": 0.5775330087524843
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        0.017405042285349604,
+        0.027642843075728285
+      ],
+      "forklift": [
+        -0.05461986874834543,
+        0.029559487887845157
+      ],
+      "pallet": [
+        0.009439079839032813,
+        0.014674997536349859
+      ],
+      "stillage": [
+        -0.03269614192210105,
+        -0.010900843582906888
+      ],
+      "pallet_truck": [
+        -0.03368726946332894,
+        0.00098259019662591
+      ]
+    }
+  },
+  {
+    "arm": "human",
+    "seed": 1,
+    "passed": false,
+    "failures": [
+      "stillage: candidate AP_50=0.472 vs production 0.496, 95% CI of the difference [-0.035, -0.014] entirely below -0.01 (demonstrably regresses this class)",
+      "pallet_truck: candidate AP_50=0.245 vs production 0.278, 95% CI of the difference [-0.050, -0.016] entirely below -0.01 (demonstrably regresses this class)"
+    ],
+    "scores": {
+      "small_load_carrier": 0.40430325920855725,
+      "forklift": 0.23689842722683427,
+      "pallet": 0.6425286146860701,
+      "stillage": 0.4721531069509527,
+      "pallet_truck": 0.24478023055635995,
+      "iw_hub": 0.5651423054806787,
+      "robotic_arm": 0.545093191753873
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        0.013720536426865144,
+        0.02553959242321836
+      ],
+      "forklift": [
+        -0.060668370949699714,
+        0.02502905845085148
+      ],
+      "pallet": [
+        0.007066945635875599,
+        0.012376042307535834
+      ],
+      "stillage": [
+        -0.035180719694681256,
+        -0.013834330167195964
+      ],
+      "pallet_truck": [
+        -0.050481556816493314,
+        -0.016090084951795678
+      ]
+    }
+  },
+  {
+    "arm": "human",
+    "seed": 2,
+    "passed": true,
+    "failures": [],
+    "scores": {
+      "small_load_carrier": 0.4087747333650222,
+      "forklift": 0.24299405954558584,
+      "pallet": 0.6440548722162336,
+      "stillage": 0.48058548532819456,
+      "pallet_truck": 0.2539529748181108,
+      "iw_hub": 0.5218795987102289,
+      "robotic_arm": 0.5031851335028009
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        0.018437243069715694,
+        0.02964926785610225
+      ],
+      "forklift": [
+        -0.05817418126971531,
+        0.030069727696129547
+      ],
+      "pallet": [
+        0.008611649854401795,
+        0.01425266072271496
+      ],
+      "stillage": [
+        -0.025940489871611124,
+        -0.006193694372189478
+      ],
+      "pallet_truck": [
+        -0.04047473927983171,
+        -0.0069500417594802084
+      ]
+    }
+  },
+  {
+    "arm": "sam3",
+    "seed": 0,
+    "passed": false,
+    "failures": [
+      "pallet_truck: candidate AP_50=0.233 vs production 0.278, 95% CI of the difference [-0.063, -0.028] entirely below -0.01 (demonstrably regresses this class)"
+    ],
+    "scores": {
+      "small_load_carrier": 0.39521621129847473,
+      "forklift": 0.2564728963986164,
+      "pallet": 0.6440180423602854,
+      "stillage": 0.4924583750213325,
+      "pallet_truck": 0.23287477153490174,
+      "iw_hub": 0.5834365179508348,
+      "robotic_arm": 0.5640309450928177
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        0.004777155866548601,
+        0.017039648646065098
+      ],
+      "forklift": [
+        -0.04630161748018909,
+        0.04930137885215544
+      ],
+      "pallet": [
+        0.008720000762236186,
+        0.01425620857674153
+      ],
+      "stillage": [
+        -0.01503770487102164,
+        0.0058278827593756
+      ],
+      "pallet_truck": [
+        -0.0625095319930492,
+        -0.028057220728437707
+      ]
+    }
+  },
+  {
+    "arm": "sam3",
+    "seed": 1,
+    "passed": false,
+    "failures": [
+      "pallet_truck: candidate AP_50=0.242 vs production 0.278, 95% CI of the difference [-0.053, -0.019] entirely below -0.01 (demonstrably regresses this class)"
+    ],
+    "scores": {
+      "small_load_carrier": 0.3938940407632659,
+      "forklift": 0.2390797004281954,
+      "pallet": 0.64306622755684,
+      "stillage": 0.49005408392596467,
+      "pallet_truck": 0.2420035783880843,
+      "iw_hub": 0.608810271408081,
+      "robotic_arm": 0.5473726467747435
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        0.0037814722787028587,
+        0.015486322677137673
+      ],
+      "forklift": [
+        -0.06182695439793725,
+        0.019339030731452066
+      ],
+      "pallet": [
+        0.007545610014089988,
+        0.013249976832390547
+      ],
+      "stillage": [
+        -0.01730255382441242,
+        0.0033588344693445777
+      ],
+      "pallet_truck": [
+        -0.05295165937618101,
+        -0.019098248660742796
+      ]
+    }
+  },
+  {
+    "arm": "sam3",
+    "seed": 2,
+    "passed": false,
+    "failures": [
+      "pallet_truck: candidate AP_50=0.234 vs production 0.278, 95% CI of the difference [-0.063, -0.026] entirely below -0.01 (demonstrably regresses this class)"
+    ],
+    "scores": {
+      "small_load_carrier": 0.3874110359093863,
+      "forklift": 0.22624010227938618,
+      "pallet": 0.6412492328417144,
+      "stillage": 0.4896494626092657,
+      "pallet_truck": 0.23382519378294697,
+      "iw_hub": 0.5834084822873308,
+      "robotic_arm": 0.5528021236678977
+    },
+    "ci_vs_loco": {
+      "small_load_carrier": [
+        -0.0030900496414545077,
+        0.009310423861666991
+      ],
+      "forklift": [
+        -0.07976479804196919,
+        0.013074831913214667
+      ],
+      "pallet": [
+        0.005756003819901936,
+        0.011395260679720617
+      ],
+      "stillage": [
+        -0.017076859730792867,
+        0.0035668226438241592
+      ],
+      "pallet_truck": [
+        -0.06252098339720653,
+        -0.026059470485408773
+      ]
+    }
+  }
+]
